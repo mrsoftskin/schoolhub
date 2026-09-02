@@ -1,0 +1,51 @@
+[project]
+name = "schoolhub"
+version = "0.5.0"
+description = "Command Center - local personal knowledge app: scoped collections, cited chat, semester calendar"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "numpy>=1.26",
+    "onnxruntime>=1.20",
+    "tokenizers>=0.20",
+    "huggingface-hub>=0.34",
+    "pymupdf>=1.24",
+    "python-docx>=1.1",
+    "python-pptx>=1.0",
+    "openpyxl>=3.1",
+    "icalendar>=5.0",
+    "python-dateutil>=2.9",
+    "anthropic>=0.40",
+    "claude-agent-sdk>=0.2",
+    "openai>=1.40",
+    "google-genai>=1.0",
+]
+
+[project.scripts]
+brain = "brain.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/brain"]
+# Non-Python files the app reads at runtime must be named explicitly or they
+# are silently dropped from the wheel - the curated happy-hour list ships
+# inside the package so every friend has it with no setup, and a refreshed
+# list arrives through the normal app update.
+artifacts = ["src/brain/data/*.toml", "src/brain/web/static/**"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

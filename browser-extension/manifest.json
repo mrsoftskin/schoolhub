@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Command Center Session Sync",
+  "version": "1.1.0",
+  "description": "Keeps your OAKS / VHL / Connect / Blended sessions fresh in the local Command Center app, so it never asks you to re-paste cookies. Reads only your course sites plus Google Docs and your school's SharePoint, for the documents your courses link to. Sends only to 127.0.0.1.",
+  "permissions": [
+    "cookies",
+    "alarms",
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://lms.cofc.edu/*",
+    "https://*.vhlcentral.com/*",
+    "https://*.mheducation.com/*",
+    "https://library.blended-teaching.com/*",
+    "https://docs.google.com/*",
+    "https://cofc-my.sharepoint.com/*",
+    "http://127.0.0.1:8177/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Command Center Session Sync",
+    "default_popup": "popup.html"
+  },
+  "icons": {}
+}

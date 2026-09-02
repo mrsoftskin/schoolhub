@@ -1,0 +1,106 @@
+================================================================
+  Command Center - Setup Guide
+================================================================
+
+This is a personal study app that runs ON YOUR OWN computer. Nothing
+about your account leaves your machine. It pulls your deadlines, grades,
+and files from OAKS, and lets you chat with an AI about your course
+materials.
+
+Works on Windows 10/11 (Intel/AMD). You do NOT need admin rights.
+
+
+BEFORE YOU START (2 minutes)
+----------------------------------------------------------------
+1. Get a FREE AI key (Google Gemini):
+   - Go to  https://aistudio.google.com/apikey
+   - Sign in with a PERSONAL Gmail (NOT your school @cofc.edu account -
+     school accounts are usually blocked).
+   - Click "Create API key" and copy it. You'll paste it during setup.
+
+2. (Optional) Your Google Calendar:
+   - In Google Calendar > Settings > (your calendar) >
+     "Secret address in iCal format", copy that link.
+   - Paste it during setup and your personal events show alongside
+     your course deadlines.
+
+3. Log into OAKS (https://lms.cofc.edu) in Chrome and stay logged in -
+   the app uses that to find your courses and sync deadlines.
+
+
+INSTALL (about 10 minutes, mostly waiting on a download)
+----------------------------------------------------------------
+1. Unzip this folder somewhere (e.g. your Desktop).
+2. Double-click  install.bat
+   - If Windows shows a blue "Windows protected your PC" box, click
+     "More info" then "Run anyway" (it's unsigned, but it only sets up
+     the app locally).
+   - It installs Python, downloads the AI libraries (~1 GB, one time),
+     then asks you a few questions:
+        your name, your city, pick "1) Gemini", paste your Gemini key,
+        your courses (it can find them from OAKS automatically), and
+        your Google Calendar link if you want.
+
+3. When it finishes, load the browser helper (syncs deadlines/grades):
+     - Open Chrome, go to   chrome://extensions
+     - Turn ON "Developer mode" (top-right)
+     - Click "Load unpacked" and pick the  browser-extension  folder
+       inside:  C:\Users\<you>\AppData\Local\SchoolHub
+
+
+USING IT
+----------------------------------------------------------------
+- Double-click the "Command Center" icon on your Desktop. A small window
+  opens and your app appears in your browser at 127.0.0.1:8177.
+- To add course files (PDFs, slides, notes), drop them into the matching
+  folder under:  C:\Users\<you>\AppData\Local\SchoolHub\materials\
+  They get read in automatically the next time you open the app.
+- Closing the little window quits the app.
+
+
+SOMETHING WRONG? RUN THE CHECKUP FIRST
+----------------------------------------------------------------
+The app can diagnose itself. Open PowerShell (Start menu, type
+"PowerShell") and paste this one line:
+
+   & "$env:LOCALAPPDATA\SchoolHub\.venv\Scripts\python.exe" -m brain doctor
+
+It prints every check as OK / WARN / FAIL and tells you what to do
+about anything that failed. Fix the FIRST failure - the rest usually
+clear up with it.
+
+It also saves a copy to:
+
+   %LOCALAPPDATA%\SchoolHub\data\diagnostic.txt
+
+Send that file to whoever set you up. It is safe to send: it describes
+your API key and course logins ("present, 39 characters") but never
+includes the actual keys, passwords, or cookies.
+
+Add --offline on the end if you have no internet.
+
+
+COMMON PROBLEMS
+----------------------------------------------------------------
+- Chat says it cannot answer: almost always the AI key. The checkup
+  tests it and says whether it is missing or was rejected. A key made
+  with a SCHOOL Google account gets rejected - make a new one with a
+  personal Gmail.
+- Search finds nothing: no files in it yet. Drop PDFs and slides into
+  the course folders, then open the app again.
+- I missed the Google Calendar question during setup: add it any time.
+  Copy your link (Google Calendar > Settings > your calendar > "Secret
+  address in iCal format") and run, with YOUR link in the quotes:
+
+     & "$env:LOCALAPPDATA\SchoolHub\.venv\Scripts\python.exe" -m brain calendar link "PASTE_YOUR_LINK_HERE"
+
+- Deadlines stopped updating: your course-site login expired. Log into
+  OAKS in Chrome again and the helper picks it up.
+- Nothing opens: run the checkup above, then look in
+  C:\Users\<you>\AppData\Local\SchoolHub\data\logs\server.log
+  and send it to whoever gave you this.
+- The browser extension turned itself off after a Chrome update: just
+  redo the "Load unpacked" step above.
+- ARM PC (Snapdragon / Copilot+): not supported yet - needs an
+  Intel/AMD computer.
+================================================================

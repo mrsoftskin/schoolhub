@@ -1,0 +1,153 @@
+================================================================
+  Command Center - Mac Setup Guide
+================================================================
+
+A personal study app that runs ON YOUR OWN Mac. Nothing about your
+accounts leaves your machine. It pulls your deadlines, grades, and
+course files from OAKS, and lets you chat with an AI about your notes.
+
+REQUIREMENTS
+  - Any Mac from roughly 2017 on:
+      Apple Silicon (M1 or newer): macOS 14 (Sonoma) or newer
+      Intel Mac:                   macOS 13 (Ventura) or newer
+  - Chrome installed (the sync helper only works in Chrome)
+  - No admin password needed. Nothing is installed system-wide.
+  - Built for College of Charleston. Deadline sync talks to
+    lms.cofc.edu, so at another school the chat and your own files
+    still work, but automatic deadlines will not.
+
+
+BEFORE YOU START (2 minutes)
+----------------------------------------------------------------
+1. Get a FREE AI key:
+   - Go to  https://aistudio.google.com/apikey
+   - Sign in with a PERSONAL Gmail. Do NOT use your @cofc.edu
+     account - school Google accounts are blocked from this, and the
+     app will not be able to answer anything.
+   - Click "Create API key" and copy it. You'll paste it during setup.
+
+2. (Optional) Your Google Calendar:
+   - Google Calendar > Settings > (your calendar) >
+     "Secret address in iCal format" - copy that link.
+   - Paste it during setup and your personal events show up next to
+     your course deadlines.
+
+3. Log into OAKS (lms.cofc.edu) in Chrome and stay logged in.
+   Do this BEFORE running the installer - setup can then find your
+   courses automatically instead of asking you to type them.
+
+
+INSTALL (about 10 minutes, mostly waiting on a download)
+----------------------------------------------------------------
+1. Unzip the folder you were sent into your Downloads.
+
+2. Open Terminal (press Cmd+Space, type "Terminal", hit Return).
+
+3. Copy this line, paste it into Terminal, and press Return:
+
+       bash ~/Downloads/CommandCenter-Setup-Mac/install.sh
+
+   (If you unzipped somewhere else, drag the install.sh file onto the
+   Terminal window instead of typing the path - that fills it in.)
+
+   Why Terminal instead of double-clicking? Because a double-click on a
+   downloaded script makes macOS show a scary "unidentified developer"
+   block. Running it this way skips that entirely. Nothing else about
+   it is different.
+
+4. It will ask you a few questions:
+       your name, your city, pick "1) Gemini", paste your Gemini key,
+       your courses (it can find them from OAKS automatically), and
+       your Google Calendar link if you want one.
+
+5. When it finishes, load the browser helper (one time only):
+       - Open Chrome, go to   chrome://extensions
+       - Turn ON "Developer mode" (top right)
+       - Click "Load unpacked", and choose the folder the installer
+         printed at the end. You can paste this into the file dialog
+         with Cmd+Shift+G:
+         ~/Library/Application Support/CommandCenter/browser-extension
+
+   Skipping this step is allowed - the app still works - but your
+   deadlines and grades will stop updating after a day or two,
+   because nothing is refreshing your course-site logins.
+
+
+USING IT
+----------------------------------------------------------------
+- Open "Command Center" from your Applications folder. Drag it to your
+  Dock so it's one click from then on.
+- Your course files live in a folder called "Command Center" in your
+  home folder. Drop PDFs, slides, and notes into the right course
+  folder - the app reads them in next time you open it.
+- Closing the little window quits the app.
+
+
+SOMETHING WRONG? RUN THE CHECKUP FIRST
+----------------------------------------------------------------
+The app can diagnose itself. Copy this ENTIRE line into Terminal and
+press Return (it is one line, and the quotes matter):
+
+   "$HOME/Library/Application Support/CommandCenter/venv/bin/python" -m brain doctor
+
+It prints a list of checks with OK / WARN / FAIL, and tells you what
+to do about anything that failed. Fix the FIRST failure listed - the
+rest usually clear up on their own once it is fixed.
+
+It also saves a copy to:
+
+   ~/Library/Application Support/CommandCenter/data/diagnostic.txt
+
+Send that file to whoever set you up and they can tell what's wrong
+without touching your Mac. It is safe to send: it describes your API
+key and course logins ("present, 39 characters") but never includes
+the actual keys, passwords, or cookies.
+
+Add --offline to the end if you have no internet and just want the
+local checks.
+
+
+COMMON PROBLEMS
+----------------------------------------------------------------
+- "It needs macOS 13/14 or newer": update macOS in System Settings >
+  General > Software Update, then run the install line again.
+
+- Nothing happens when I open the app: run the checkup above. If it
+  says another program is using port 8177, quit that program, or
+  open the app from Terminal on a different port:
+     CC_PORT=8178 "$HOME/Library/Application Support/CommandCenter/venv/bin/python" \
+       "$HOME/Library/Application Support/CommandCenter/launch.py"
+
+- Chat says it cannot answer / nothing comes back: almost always the
+  AI key. The checkup actually tests it and will say whether the key
+  is missing or was rejected. A key made with a SCHOOL Google account
+  gets rejected - make a new one with a personal Gmail.
+
+- Search finds nothing: you have no files in it yet. Put PDFs and
+  slides into the course folders inside ~/Command Center, then open
+  the app again (it indexes on open).
+
+- Deadlines stopped updating: your course-site login expired. Just log
+  into OAKS in Chrome again - the helper picks it up automatically.
+  If the checkup says the Chrome helper is missing, redo the
+  "Load unpacked" step above.
+
+- I missed the Google Calendar question during setup: you can add it
+  any time without redoing setup. Copy your link (Google Calendar >
+  Settings > your calendar > "Secret address in iCal format"), then run
+  this one line with YOUR link in the quotes:
+
+     "$HOME/Library/Application Support/CommandCenter/venv/bin/python" -m brain calendar link "PASTE_YOUR_LINK_HERE"
+
+  It connects the calendar and imports your events immediately.
+
+- My personal calendar events are missing: same command as above - the
+  link either was never added or was pasted wrong.
+
+- The first question takes forever: the search model (~130 MB)
+  downloads once. After that it is instant, and works offline.
+
+- The install stopped partway (internet dropped): just run the same
+  Terminal line again. It picks up where it left off and will not
+  lose your settings or your files.
+================================================================

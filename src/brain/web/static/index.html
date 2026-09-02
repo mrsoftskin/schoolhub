@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f8fa">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1116">
+<title>Command Center</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Ccircle cx='16' cy='16' r='5.5' fill='none' stroke='white' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='1.8' fill='white'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<!-- theme-boot must run before first paint; the CSP forbids inline scripts,
+     so it is a tiny synchronous external file. -->
+<script src="theme-boot.js"></script>
+<!-- Vendored, not CDN-loaded: marked@16 moved its dist path and the pinned
+     CDN URL started 404ing, which broke every answer with "marked is not
+     defined". Local copies also work offline and let the CSP forbid every
+     off-origin script. marked 15.0.12 / DOMPurify 3.2.7 -->
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header id="topbar">
+  <div id="brand">
+    <button class="pip-btn" id="pip-btn" type="button" title="System status" aria-label="System status">
+      <span class="pip"></span>
+    </button>
+    COMMAND&nbsp;CENTER
+  </div>
+  <nav id="tabs" role="tablist" aria-label="Sections">
+    <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-today" data-tab="today">Today<span class="tab-dot hidden" id="today-dot"></span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-analytics" data-tab="analytics">Analytics</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-grades" data-tab="grades">Grades</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-calendar" data-tab="calendar">Calendar</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-chat" data-tab="chat">Chat</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-socials" data-tab="socials">Socials</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-library" data-tab="library">Library<span class="tab-dot warn hidden" id="library-dot"></span></button>
+  </nav>
+  <span id="tab-indicator" aria-hidden="true"></span>
+  <div id="topbar-right">
+    <button id="sync-pill" type="button" class="hidden"></button>
+    <button id="theme-toggle" type="button" title="Switch theme" aria-label="Switch between light and dark theme">
+      <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" class="hidden">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/>
+      </svg>
+      <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M20.6 14.6A8.6 8.6 0 0 1 9.4 3.4a8.6 8.6 0 1 0 11.2 11.2z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<div id="config-warnings" class="hidden"></div>
+
+<main id="main-content">
+  <!-- TODAY: Folio. Ships INACTIVE: init's showTab activates it so the
+       first load gets the entrance choreography like any other arrival. -->
+  <section id="tab-today" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Today">
+    <h1 class="sr-only">Today</h1>
+    <div id="today-dateline">
+      <span id="today-date"></span>
+      <span id="today-wx"></span>
+    </div>
+    <div id="semester-rule" aria-hidden="true"><span id="semester-fill"></span></div>
+    <div id="semester-note"></div>
+    <div id="update-line"></div>
+    <div id="sync-line"></div>
+    <p id="today-hello"></p>
+    <!-- The Everything ask, moved off the topbar and onto the page you
+         actually open. Same /api/ask the palette used: no collection means
+         every collection. -->
+    <form id="ask-anything" autocomplete="off">
+      <label for="ask-input" class="sr-only">Ask anything about your courses</label>
+      <input id="ask-input" type="text" spellcheck="false"
+             placeholder="Ask anything…">
+      <button id="ask-send" type="submit">Ask</button>
+    </form>
+    <div id="ask-answer" class="hidden" aria-live="polite"></div>
+    <div id="plan">
+      <div class="overline-row">
+        <h2 class="overline">The plan</h2>
+        <span class="overline-rule"></span>
+        <span class="overline-meta" id="plan-count"></span>
+      </div>
+      <div id="plan-list"></div>
+      <div id="plan-tail" class="hidden"></div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS: Operations Ledger ------------------------------------ -->
+  <section id="tab-analytics" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Analytics">
+    <h1 class="sr-only">Analytics</h1>
+    <div id="analytics-error"></div>
+    <!-- The old masthead printed deadlines/exams/quizzes/projects in 26px
+         type, the same four numbers the ledger's own totals footer prints
+         further down the same screen. A lead should say something the page
+         does not already say twice. -->
+    <div id="an-lead">
+      <p id="an-statement"></p>
+      <p id="an-leadmeta"></p>
+    </div>
+    <div class="an-band" id="an-pressure">
+      <div class="overline-row">
+        <h2 class="overline">Next 28 days</h2>
+        <span class="overline-rule"></span>
+        <span class="overline-meta" id="ribbon-meta"></span>
+      </div>
+      <!-- Day resolution, from analytics.daily_load - shipped in every
+           payload and previously read by nothing. -->
+      <div id="an-ribbon"></div>
+      <div id="busiest-days"></div>
+    </div>
+    <div class="an-band" id="an-courses">
+      <div class="overline-row">
+        <h2 class="overline">Courses</h2>
+        <span class="overline-rule"></span>
+        <span class="overline-meta" id="courses-meta"></span>
+      </div>
+      <div id="course-ledger"></div>
+    </div>
+    <div class="an-band" id="an-workload">
+      <div class="overline-row">
+        <h2 class="overline">Semester</h2>
+        <span class="overline-rule"></span>
+        <span class="overline-meta" id="workload-meta"></span>
+      </div>
+      <svg id="chart-weekload" class="chart" role="img"
+           aria-label="Events per week across the semester, stacked by course"></svg>
+      <div id="workload-empty" class="empty-line hidden"></div>
+    </div>
+  </section>
+
+  <!-- GRADES: Report Card ---------------------------------------------- -->
+  <section id="tab-grades" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Grades">
+    <h1 class="sr-only">Grades</h1>
+    <div id="grades-lead"></div>
+    <div id="grades-masthead">
+      <div class="overline-row">
+        <h2 class="overline">Gradebooks</h2>
+        <span class="overline-rule"></span>
+        <span class="overline-meta" id="grades-meta"></span>
+      </div>
+    </div>
+    <div id="gr-scale" aria-hidden="true"></div>
+    <div id="grades-body"></div>
+  </section>
+
+  <!-- CALENDAR: Almanac ------------------------------------------------ -->
+  <section id="tab-calendar" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Calendar">
+    <h1 class="sr-only">Calendar</h1>
+    <div id="cal-masthead">
+      <h2 id="cal-title"></h2>
+      <span id="cal-nav">
+        <button id="cal-prev" aria-label="Previous" title="Previous — [">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+        </button>
+        <button id="cal-next" aria-label="Next" title="Next — ]">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>
+        </button>
+        <button id="cal-today-btn">Today</button>
+        <span id="cal-hint" aria-hidden="true">t = today · [ ] = prev/next</span>
+      </span>
+      <span id="cal-right">
+        <button id="classes-toggle" type="button" class="text-action quiet" aria-pressed="true">Hide classes</button>
+        <span role="tablist" aria-label="Calendar view">
+          <button id="cal-mode-month" class="cal-mode active" role="tab" aria-selected="true">Month</button>
+          <button id="cal-mode-week" class="cal-mode" role="tab" aria-selected="false">Week</button>
+        </span>
+      </span>
+    </div>
+    <div id="cal-ruler-row" class="overline-row">
+      <h2 class="overline">Semester · deadlines per week</h2>
+      <span class="overline-rule"></span>
+      <span class="overline-meta" id="ruler-meta"></span>
+    </div>
+    <div id="sem-ruler" aria-label="Deadlines per week across the semester"></div>
+    <div id="cal-month" class="cal-view"></div>
+    <div id="cal-week" class="cal-view hidden"></div>
+  </section>
+
+  <!-- CHAT: Manuscript ------------------------------------------------- -->
+  <section id="tab-chat" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Chat">
+    <h1 class="sr-only">Chat</h1>
+    <aside id="chat-rail"></aside>
+    <div id="chat-main">
+      <div id="chat-scroll">
+        <div id="chat-column">
+          <div id="chat-masthead" class="hidden"></div>
+          <div id="chat-messages" role="log" aria-live="polite"></div>
+        </div>
+      </div>
+      <form id="composer">
+        <div class="composer-inner">
+          <div id="composer-rule" aria-hidden="true"></div>
+          <div id="composer-previews" class="hidden"></div>
+          <textarea id="composer-input" rows="1"
+            title="Enter to send · Shift+Enter for a new line"
+            placeholder="Ask…"></textarea>
+          <div id="composer-quick">
+            <button type="button" id="attach-btn" class="qa-link" title="Attach an image (or paste / drop one)">Attach</button>
+            <button type="button" class="qa-link" data-qa="guide">Study guide</button>
+            <button type="button" class="qa-link" data-qa="flashcards">Flashcards</button>
+            <button type="button" class="qa-link" data-qa="quiz">Practice quiz</button>
+            <button type="button" class="qa-link" data-qa="diagram">Diagram it</button>
+            <button type="button" class="qa-link" data-qa="summary">Summarize</button>
+          </div>
+          <div id="composer-meta">
+            <button type="button" id="model-btn" title="Answering model"></button>
+            <span class="grow"></span>
+            <span class="hint">shift+enter for a new line</span>
+            <button type="submit" id="composer-send">Send ↵</button>
+          </div>
+        </div>
+        <input type="file" id="attach-input" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+      </form>
+    </div>
+  </section>
+
+  <!-- LIBRARY: Colophon ------------------------------------------------ -->
+  <section id="tab-socials" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Socials">
+    <h1 class="sr-only">Socials</h1>
+    <div class="page">
+      <div class="soc-bar">
+        <div class="soc-seg" role="tablist" aria-label="What to show">
+          <button class="soc-seg-btn active" data-view="today" role="tab" aria-selected="true">Today</button>
+          <button class="soc-seg-btn" data-view="spots" role="tab" aria-selected="false">All spots</button>
+          <button class="soc-seg-btn" data-view="events" role="tab" aria-selected="false">What's on</button>
+        </div>
+        <input id="soc-search" type="search" placeholder="Filter…" aria-label="Filter the list">
+        <span class="soc-meta" id="soc-count"></span>
+      </div>
+      <div id="soc-chips" class="soc-chips"></div>
+      <div id="soc-list"></div>
+      <p id="soc-note" class="empty-line"></p>
+    </div>
+  </section>
+
+  <section id="tab-library" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Library">
+    <h1 class="sr-only">Library</h1>
+    <div id="lib-colophon">
+      <div class="lib-overline-row overline-row">
+        <h2 class="overline">The index</h2>
+        <span class="overline-rule"></span>
+        <button id="reindex-all" class="text-action" type="button">Reindex all</button>
+      </div>
+      <div id="lib-statement"></div>
+      <div id="lib-health"></div>
+    </div>
+    <!-- The index run is an object on this page, not a button label. It is
+         owned by the server, so this band never invents one: it reflects
+         /api/index/status. Every node is authored here so the poll tick has
+         only textContent and one numeric --w to write - it cannot insert,
+         and therefore cannot animate. Deliberately a SIBLING of
+         #lib-colophon, not a child: the colophon is in the .tab-panel
+         .entering rise-in list and a child would inherit its transform. -->
+    <section id="lib-run" class="hidden" aria-label="Index run">
+      <div id="lib-run-track" class="is-blank" role="progressbar"
+           aria-labelledby="lib-run-phase" aria-valuemin="0" aria-valuemax="100">
+        <i id="lib-run-fill"></i>
+      </div>
+      <p id="lib-run-line">
+        <span id="lib-run-phase"></span>
+        <span id="lib-run-count" class="tnum"></span>
+        <span class="sp"></span>
+        <span id="lib-run-clock" class="tnum"></span>
+      </p>
+    </section>
+    <div id="lib-shelf" aria-label="Index share by collection"></div>
+    <div id="lib-ledger"></div>
+    <div id="lib-cal">
+      <div class="overline-row">
+        <h2 class="overline">Calendar</h2>
+        <span class="overline-rule"></span>
+      </div>
+      <div id="lib-cal-lead"></div>
+      <div id="library-calendar"></div>
+      <button id="reimport-btn" class="btn">Reimport calendar</button>
+      <div id="reimport-result" aria-live="polite"></div>
+    </div>
+  </section>
+</main>
+
+<div id="event-popover" class="float hidden" role="dialog" aria-label="Event details"></div>
+<div id="bar-pop" class="float bar-pop hidden" role="dialog" aria-label="Status"></div>
+<div id="chart-tip" class="hidden"></div>
+<div id="toasts" role="status" aria-live="polite"></div>
+<!-- Present and empty at load, which is what makes it announce. Anything
+     that only appears when it has something to say (#config-warnings is
+     .hidden until then; a load failure REPLACES its container) can never be
+     a live region itself. -->
+<div id="a11y-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="palette-scrim" class="hidden">
+  <div id="palette" class="float" role="dialog" aria-label="Ask or jump">
+    <input id="palette-input" type="text" autocomplete="off" spellcheck="false"
+      placeholder="Ask anything, or jump to a tab or collection…">
+    <div id="palette-body"></div>
+    <div id="palette-answer" class="hidden"></div>
+    <div id="palette-footer">
+      <button type="button" id="palette-model" title="Answering model"></button>
+      <span>esc to close</span>
+    </div>
+  </div>
+</div>
+
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 13px "Segoe UI", system-ui, sans-serif; width: 240px; margin: 0; padding: 12px; color: #16181d; }
+  h1 { font-size: 13px; margin: 0 0 8px; }
+  .row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .site { font-weight: 600; }
+  .ok { color: #0ca30c; } .bad { color: #d03b3b; } .muted { color: #858c99; }
+  button { width: 100%; margin-top: 10px; padding: 6px; font: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Command Center Session Sync</h1>
+<div id="rows"></div>
+<div id="docs-status" class="muted"></div>
+<button id="sync">Sync now</button>
+<button id="fetchdocs">Fetch course documents</button>
+<script src="popup.js"></script>
+</body>
+</html>

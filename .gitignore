@@ -1,0 +1,46 @@
+# Secrets - never commit
+.env
+
+# Local data (rebuildable: brain index / brain calendar import).
+# Anchored to the repo root on purpose: a bare `data/` also matches
+# src/brain/data/, which silently dropped the shipped happy-hour list
+# from the wheel (hatchling honors ignore files).
+/data/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# local permission grants
+.claude/settings.local.json
+
+# ---- personal data: this repo is publishable, its owner's life is not ----
+# config.toml carries the owner's name, HOME LATITUDE/LONGITUDE, absolute
+# paths containing their username, and (if a Google Calendar was connected)
+# a private iCal URL, which is a BEARER SECRET - anyone holding it can read
+# the whole calendar. Ship config.example.toml instead.
+config.toml
+config.toml.bak
+
+# A semester's deadlines, and which of them are finished. DENY BY DEFAULT:
+# per-filename rules kept missing things that are written at runtime -
+# sync.py writes fixed.csv.tmp and only unlinks it inside an
+# `except PermissionError`, socials.py documents calendar/happy_hours.toml,
+# and Excel leaves ~$fixed.csv behind. Any one of those commits a semester of
+# real deadlines, so the directory is excluded and additions are opt-in.
+/calendar/*
+!/calendar/.gitkeep
+
+# Course materials and anything captured from a course site.
+materials/
+*.whl
+dist/
+
+# Playwright's UI snapshots: they capture the live page, so they carry real
+# course codes, real assignment titles and verbatim chat conversation titles.
+.playwright-cli/
+
+# The engineering diary. It is the working backlog, not documentation, and it
+# quotes real course details, real error text and this machine's paths. The
+# dashboard reads it from disk, so nothing needs it in the repo.
+TODO.md

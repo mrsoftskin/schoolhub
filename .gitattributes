@@ -1,0 +1,35 @@
+# Line endings are a correctness issue in this repo, not a style preference.
+#
+# packaging/mac/install.sh shipped once with CRLF endings and could not run on
+# any Mac at all: /bin/bash treats the carriage return as part of the word, so
+# `set -euo pipefail\r` becomes "set: : invalid option name" and the script
+# dies having installed nothing. The first person to try it hit exactly that.
+#
+# Git on Windows will happily convert LF to CRLF in the working tree
+# (core.autocrlf), which would reintroduce that bug for anyone who clones here
+# and then builds a release. These rules pin the endings per file type so the
+# checkout is correct regardless of anyone's git config.
+
+# Normalize everything in the repository to LF.
+* text=auto eol=lf
+
+# POSIX shell and anything a Mac or Linux box executes: LF, always.
+*.sh            text eol=lf
+*.bash          text eol=lf
+
+# Windows-only scripts genuinely want CRLF; cmd.exe is the fussy one.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# Never touch binaries - a "line ending fix" inside these corrupts them.
+*.png           binary
+*.jpg           binary
+*.ico           binary
+*.pdf           binary
+*.woff          binary
+*.woff2         binary
+*.whl           binary
+*.zip           binary
+*.onnx          binary
+*.db            binary

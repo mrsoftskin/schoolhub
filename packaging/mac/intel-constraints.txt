@@ -1,0 +1,4 @@
+# Newest releases of these publish arm64-only macOS wheels; these are the
+# newest versions that still ship an Intel-Mac wheel, so an Intel install
+# never falls back to a source build (which would need Xcode + Rust).
+cryptography<=48.0.1

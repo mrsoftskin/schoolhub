@@ -1,0 +1,2084 @@
+/* Command Center - "authored page" system, light and dark.
+
+   The ground is one flat field (--bg). Content is structured by hairline
+   rules, caps overlines, and typographic hierarchy - NOT by cards. Borders,
+   radii, and shadows are reserved for things that genuinely float: the
+   palette, popovers, toasts, tooltips, calendar's event popover.
+
+   Surfaces per tab: Today = Folio (dateline, semester rule, display lead,
+   day-grouped docket, margin ledger). Analytics = Operations Ledger (figure
+   masthead, fused week-ruler chart, courses ledger, system band). Calendar =
+   Almanac (typeset month on week rules, semester ruler). Chat = Manuscript
+   (index rail tree, typeset Q&A, footnote citations, underline composer).
+   Library = Colophon (display statement, shelf strip, hairline ledger).
+   Grades = Report Card (figure-strip lead, per-course bands, item ledger).
+   Frame = Baseline (masthead bar on the ground, underline tabs, Ctrl+K
+   palette as the app's ask surface).
+
+   Type: Inter variable (vendored; CSP allows only self-hosted files),
+   fallback Segoe UI. Monospace only for paths and code. Data numerals wear
+   tabular figures (.tnum); display numerals stay proportional.
+
+   Charts and JS-drawn marks read tokens at draw time; dark course hues are
+   the re-stepped, CVD-validated set in app.js (DARK_COURSE). */
+
+@font-face {
+  font-family: "Inter var";
+  src: url("fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter var";
+  src: url("fonts/InterVariable-Italic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+
+  --bg: #f7f8fa;
+  --bg-sunken: #eef0f4;
+  --surface: #ffffff;        /* floats only */
+  --surface-2: #f3f5f8;
+
+  --hairline: rgba(16, 24, 40, .10);       /* structural rules */
+  --rule-strong: rgba(16, 24, 40, .20);    /* totals, brackets */
+  --rule-rest: #d4d9e0;                    /* unfilled part of progress rules */
+  --grid-rule: rgba(16, 24, 40, .16);      /* calendar cell lattice: a step up
+                                              from --hairline, which is too
+                                              faint to separate 42 cells */
+  --border: #e4e7ec;                       /* float borders */
+  --border-soft: #edeff3;
+  --border-strong: #ccd2db;
+
+  --text: #16181d;
+  --text-2: #545c68;
+  --text-3: #71798a;
+  --muted: #71798a;
+  --ink-dim: rgba(22, 24, 29, .38);        /* dimmed zeros, done rows */
+
+  --accent: #2a78d6;
+  --accent-ink: #1d5eae;
+  --accent-soft: #eaf1fc;
+  --accent-border: #bcd5f5;
+  --on-accent: #ffffff;
+
+  --good: #0ca30c;
+  --good-ink: #0a7d0a;
+  --good-bg: #e9f7e9;
+  --warning: #b8770a;
+  --warning-bg: #fdf3e2;
+  --warning-border: #f0dcb8;
+  --critical: #d03b3b;
+  --critical-bg: #fdedec;
+  --critical-border: #f3cfcd;
+  --danger: #d03b3b;
+
+  --chart-surface: #f7f8fa;  /* charts sit on the ground now */
+  --chart-grid: rgba(16, 24, 40, .08);
+  --chart-axis: rgba(16, 24, 40, .18);
+  --chart-ink: #16181d;
+  --seq: #2a78d6;
+  --seq-dim: #9ec5f4;
+  --heat: 42, 120, 214;
+
+  --tip-bg: #1b1f27;
+  --tip-border: #2c323d;
+  --tip-text: #ffffff;
+  --tip-text-2: #c6ccd8;
+
+  --course-fallback: #666e7e;
+
+  --skeleton-a: #eceef2;
+  --skeleton-b: #f6f7f9;
+
+  --selection: #d6e6fb;
+  --scrollbar: #ccd2dc;
+  --scrollbar-hover: #b3bbc8;
+
+  --r-xs: 4px;
+  --r-sm: 8px;    /* wells, command core */
+  --r: 10px;      /* cards / floats */
+  --r-lg: 12px;   /* palette */
+
+  --sans: "Inter var", "Segoe UI Variable Text", "Segoe UI", -apple-system,
+          BlinkMacSystemFont, system-ui, sans-serif;
+  --mono: "Cascadia Code", "JetBrains Mono", ui-monospace, "SF Mono",
+          Consolas, monospace;
+
+  --shadow-sm: 0 1px 2px rgba(19, 24, 35, .05);
+  --shadow: 0 1px 3px rgba(19, 24, 35, .07), 0 8px 24px -14px rgba(19, 24, 35, .20);
+  --shadow-lg: 0 2px 6px rgba(19, 24, 35, .10), 0 24px 64px -16px rgba(19, 24, 35, .35);
+
+  --ease: cubic-bezier(.25, .1, .25, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);   /* settle: fast start, long soft landing */
+
+  /* Liveliness pass: the app-wide motion clock. Ink and washes settle at
+     --t-ink; data-mark transforms and spotlights at --t-mark; --spot-dim is
+     how far non-hovered members of a spotlit instrument recede. */
+  --t-ink: .12s;
+  --t-mark: .15s;
+  --spot-dim: .4;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0f1116;
+  --bg-sunken: #0b0d11;
+  --surface: #171a21;
+  --surface-2: #1d212a;
+
+  --hairline: rgba(255, 255, 255, .08);
+  --rule-strong: rgba(255, 255, 255, .16);
+  --rule-rest: #272d38;   /* unfilled progress track: #1f242d sat too close
+                             to the dark ground to read as a bar at all */
+  --grid-rule: rgba(255, 255, 255, .13);
+  --border: #252a34;
+  --border-soft: #1f242d;
+  --border-strong: #363d4a;
+
+  --text: #e9ebf1;
+  --text-2: #a6adba;
+  --text-3: #7d8593;
+  --muted: #7d8593;
+  --ink-dim: rgba(233, 235, 241, .35);
+
+  --accent: #5c9ce6;
+  --accent-ink: #7fb2ee;
+  --accent-soft: #18263c;
+  --accent-border: #2b4a74;
+  --on-accent: #0d1524;
+
+  --good: #3fbf3f;
+  --good-ink: #6bd66b;
+  --good-bg: #12250f;
+  --warning: #d99a2b;
+  --warning-bg: #2a2008;
+  --warning-border: #4a3a12;
+  --critical: #e05c5c;
+  --critical-bg: #301114;
+  --critical-border: #5a2226;
+  --danger: #e05c5c;
+
+  --chart-surface: #0f1116;
+  --chart-grid: rgba(255, 255, 255, .07);
+  --chart-axis: rgba(255, 255, 255, .16);
+  --chart-ink: #e9ebf1;
+  --seq: #5c9ce6;
+  --seq-dim: #2b4a74;
+  --heat: 92, 156, 230;
+
+  --tip-bg: #262b35;
+  --tip-border: #3a424f;
+  --tip-text: #f2f4f8;
+  --tip-text-2: #a6adba;
+
+  --course-fallback: #7b8494;
+
+  --skeleton-a: #1d212a;
+  --skeleton-b: #242935;
+
+  --selection: #274a77;
+  --scrollbar: #333a47;
+  --scrollbar-hover: #454e5e;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+  --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .55);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, .5), 0 24px 64px -12px rgba(0, 0, 0, .7);
+}
+
+/* ================================================================= base */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: .9375rem;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--selection); }
+
+.muted { color: var(--text-3); font-weight: 400; }
+.hidden { display: none !important; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.num, .tnum { font-variant-numeric: tabular-nums; }
+
+button {
+  font: inherit; color: var(--text); background: none; border: none;
+  padding: 0; cursor: pointer;
+}
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, textarea:focus-visible, select:focus-visible,
+input:focus-visible, summary:focus-visible, a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* The app's action language is text, not boxes. */
+.text-action {
+  font-size: 13px; font-weight: 500; color: var(--accent);
+  background: none; border: none; padding: 2px 4px; border-radius: var(--r-xs);
+}
+.text-action:hover { color: var(--accent-ink); text-decoration: underline; }
+.text-action.quiet { color: var(--text-3); }
+.text-action.quiet:hover { color: var(--text); text-decoration: underline; }
+.text-action.danger { color: var(--critical); }
+
+/* Inline jump links set in running text (Library health sentence): real
+   buttons, keyboard-reachable, styled as dotted-underline words. */
+.link-btn {
+  background: none; border: none; padding: 0; font: inherit; color: inherit;
+  text-decoration: underline dotted; cursor: pointer;
+}
+
+/* Bordered control: rare, deliberate (Library's Reimport, popover actions). */
+.btn {
+  font-size: 13px; font-weight: 500; color: var(--accent);
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 6px; padding: 7px 14px;
+  transition: border-color .12s var(--ease), color .12s var(--ease);
+}
+.btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+
+textarea, select, input {
+  font: inherit; color: var(--text);
+  background: var(--bg-sunken); border: 1px solid transparent;
+  border-radius: var(--r-sm); padding: .55em .75em;
+  transition: border-color .13s var(--ease);
+}
+textarea::placeholder, input::placeholder { color: var(--text-3); }
+textarea:focus, select:focus, input:focus { outline: none; border-color: var(--accent); }
+
+/* Caps overline: the app-wide section label. Used as a flex row so a
+   hairline can run from the label to a right-aligned annotation. */
+.overline-row {
+  display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px;
+}
+.overline {
+  font-size: 11px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3); white-space: nowrap;
+  /* The overline is an h2 in every panel now, so the UA's margin-block:
+     .83em has to go: it made a flex row 18px taller than the same row built
+     from a span. Today and Analytics were already carrying it and the other
+     five panels were not - this normalizes all seven onto the geometry the
+     five already have. Size and weight above already beat the UA sheet. */
+  margin: 0;
+}
+.overline-rule { flex: 1; height: 1px; background: var(--hairline); align-self: center; }
+.overline-meta { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.keycap {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  font-size: 11px; color: var(--text-3);
+  border: 1px solid var(--border); border-radius: 4px;
+}
+
+/* Wells: sunken tooling (inputs live in components below). */
+.well { background: var(--bg-sunken); border-radius: var(--r-sm); }
+
+/* Cards: reserved for true floats. */
+.float {
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--r); box-shadow: var(--shadow-lg);
+}
+
+/* ================================================================ frame */
+
+#topbar {
+  display: flex; align-items: center; height: 56px; flex-shrink: 0;
+  padding: 0 24px; gap: 40px; background: var(--bg);
+  border-bottom: 1px solid var(--hairline); position: relative;
+}
+#brand {
+  display: flex; align-items: center; gap: 9px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .11em; color: var(--text-2);
+}
+#brand .pip-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin-left: -8px; border-radius: 50%;
+}
+#brand .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+#brand .pip.warn { background: var(--warning); }
+#brand .pip.bad { background: var(--critical); }
+
+/* Dynamic by construction: the row may shrink below its content width and
+   scrolls rather than colliding with its neighbors, and the gap tightens
+   before that happens. Adding an eighth tab must not require touching this. */
+#tabs {
+  display: flex; gap: 28px; height: 100%;
+  min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none;
+}
+#tabs::-webkit-scrollbar { display: none; }
+.tab-btn { flex: 0 0 auto; }
+@media (max-width: 1180px) { #tabs { gap: 18px; } #topbar { gap: 24px; } }
+@media (max-width: 900px) { #tabs { gap: 13px; } .tab-btn { font-size: 12.5px; } }
+.tab-btn {
+  position: relative; height: 100%; display: inline-flex; align-items: center;
+  gap: 5px; font-size: 13.5px; font-weight: 550; color: var(--text-3);
+  transition: color .12s var(--ease);
+}
+.tab-btn:hover { color: var(--text-2); }
+.tab-btn.active { color: var(--text); }
+.tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.tab-dot.warn { width: 5px; height: 5px; background: var(--warning); }
+/* The single sliding indicator sits ON the bar's hairline. */
+#tab-indicator {
+  position: absolute; bottom: -1px; left: 0; width: 1px; height: 2px;
+  background: var(--accent);
+  /* transform, never left/width: those are layout properties and this bar
+     moves on every tab switch. scaleX carries the width. */
+  transform-origin: 0 50%;
+  transition: transform .16s var(--ease);
+  will-change: transform;
+}
+
+/* The topbar ask trigger is gone: it was absolutely positioned and centered on
+   the bar, so it knew nothing about the tab row and a seventh tab (Socials)
+   slid underneath it. The ask now lives on the Today tab (#ask-anything); the
+   slash / Ctrl-K palette shortcut still opens the float. */
+
+/* Visible to screen readers only - for labels whose control is self-evident. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* The first focusable node on the page. It parks above the viewport and
+   rides down on FOCUS, so it costs nothing until a keyboard reaches it. No
+   card, no radius, no shadow: the same flat --bg ground the topbar stands
+   on, wearing the caps-overline voice, closed by one hairline. transform
+   only - never top - so it composites, and the reduced-motion block already
+   flattens the slide. :focus, not :focus-visible: a skip link must show
+   whenever it holds focus, and :focus-visible does not match programmatic
+   focus. */
+.skip-link {
+  /* Full width, not a 141px tab: the box has to cover whatever is behind it,
+     and at left:24px the wordmark's last two letters showed past its edge as
+     orphan text. Spanning the row makes that impossible for any content,
+     and it is only ever on screen while focused. */
+  position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+  /* 56px is #topbar's height, matched deliberately: a shorter strip leaves
+     the wordmark's lower half showing beneath it. */
+  height: 56px; display: flex; align-items: center;
+  padding: 0 24px; background: var(--bg); color: var(--accent);
+  font-size: 11px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; text-decoration: none;
+  border-bottom: 1px solid var(--hairline);
+  transform: translateY(-200%);
+  transition: transform var(--t-mark) var(--ease-out);
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+/* The panel is a skip DESTINATION, not a control: its focus ring would be a
+   2px rectangle around the whole content area, clipped by main's
+   overflow:hidden. The link is the visible affordance; the arrival is the
+   feedback. (WCAG 2.4.7 governs UI components.) */
+.tab-panel:focus { outline: none; }
+
+#topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+#sync-pill {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink);
+  font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+  animation: pop-in .2s var(--ease-out);
+}
+#theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; color: var(--text-3); border-radius: var(--r-sm);
+}
+#theme-toggle:hover { color: var(--text); }
+#theme-toggle svg { width: 15px; height: 15px; display: block; }
+
+#config-warnings {
+  display: flex; align-items: flex-start; gap: 1rem;
+  background: var(--warning-bg); color: var(--warning);
+  padding: .65rem 24px; font-size: .85rem;
+  border-bottom: 1px solid var(--warning-border);
+}
+#config-warnings .warn-text { flex: 1; white-space: pre-line; }
+#config-warnings .warn-close { color: inherit; font-size: 1rem; line-height: 1; padding: 0 .2em; }
+
+/* Anchored popovers from the bar (status pip, sync pill). */
+.bar-pop {
+  position: fixed; z-index: 90; width: 340px; padding: 14px 16px;
+  font-size: 13px; line-height: 1.55; color: var(--text-2);
+  animation: pop-in .2s var(--ease-out);
+}
+.bar-pop .pop-row { display: flex; justify-content: space-between; gap: 12px; margin: 3px 0; }
+.bar-pop .pop-row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar-pop .pop-head { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+.bar-pop .pop-actions { display: flex; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+.bar-pop .warn { color: var(--warning); }
+.bar-pop .bad { color: var(--critical); }
+
+/* Palette: the app's one strongly elevated surface. */
+#palette-scrim {
+  position: fixed; inset: 0; z-index: 120; background: rgba(0, 0, 0, .4);
+  display: flex; justify-content: center; align-items: flex-start;
+  animation: fade-in .12s var(--ease);
+}
+#palette {
+  width: 640px; max-width: calc(100vw - 48px); margin-top: 18vh;
+  border-radius: var(--r-lg); overflow: hidden;
+  display: flex; flex-direction: column; max-height: 64vh;
+  animation: palette-in .2s var(--ease-out);
+}
+@keyframes palette-in { from { opacity: 0; transform: translateY(-10px) scale(.99); } }
+#palette-input {
+  height: 52px; padding: 0 18px; font-size: 15px; font-weight: 450;
+  background: none; border: none; border-radius: 0;
+  border-bottom: 1px solid var(--border); color: var(--text);
+}
+#palette-input:focus { border-color: var(--border); }
+#palette-body { overflow-y: auto; }
+.palette-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  height: 36px; padding: 0 18px; font-size: 13.5px; color: var(--text-2);
+  text-align: left;
+}
+.palette-row:hover, .palette-row.hot { background: var(--surface-2); color: var(--text); }
+.palette-row .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-row .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.palette-label {
+  padding: 10px 18px 4px; font-size: 11px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
+}
+#palette-answer {
+  padding: 14px 18px; font-size: 14px; line-height: 1.65; color: var(--text);
+  border-top: 1px solid var(--border); overflow-y: auto; max-height: 50vh;
+}
+#palette-answer .msg-meta { margin-top: 8px; }
+#palette-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 32px; padding: 0 18px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-3);
+}
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(.985); } }
+
+/* ============================================================== ground */
+
+main { flex: 1; overflow: hidden; display: flex; justify-content: center; }
+.tab-panel { display: none; flex: 1; overflow-y: auto; padding: 28px 32px 64px; }
+.tab-panel.active { display: block; animation: panel-in .24s var(--ease-out); }
+/* One measure for the whole Today page. The panel is wider than the reading
+   column so the greeting has air, but every RULE on the page - dateline,
+   semester bar, ask underline, plan hairlines - has to end on the same right
+   margin or the stack reads as a staircase. */
+#tab-today.active { max-width: 880px; }
+#tab-today { --measure: 680px; }
+#tab-today :is(#today-dateline, #semester-rule, #semester-note, #sync-line,
+  #update-line, #ask-anything, #ask-answer, #plan) { max-width: var(--measure); }
+#tab-analytics.active { max-width: 1600px; padding-left: 28px; padding-right: 28px; }
+#tab-calendar.active { max-width: 1200px; padding-left: 40px; padding-right: 40px; }
+#tab-library.active { max-width: 848px; padding-top: 60px; }
+#tab-chat.active { display: flex; max-width: none; padding: 0; overflow: hidden; }
+@keyframes panel-in { from { opacity: 0; } }
+
+/* ------------------------------------------------------------- motion
+   Entrance choreography plays ONCE per tab per session, while the panel
+   carries .entering (showTab sets it on FIRST activation only). Revisits
+   get the panel-in fade alone; refreshes, resizes, and theme repaints
+   never replay entrances. Transforms and opacity only; panel-in is
+   opacity-only so parent and children never stack translations. */
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(5px); } }
+@keyframes fade-soft { from { opacity: 0; } }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes col-in { from { transform: scaleY(0); } }
+
+/* #grades-lead is deliberately NOT in this list. Its children are .an-fig,
+   which IS in the list, so animating both made the parent translate while
+   each child translated on its own stagger - stacked transforms, which is
+   exactly what the note above forbids, and it read as the Grades tab
+   spazzing on entry. Animate the figures, never their container. */
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row,
+  .pr-day, .tp-row, .an-fig, .gr-band, #today-hello, #plan-tail, #lib-colophon, #cal-masthead, #cal-ruler-row,
+  #gr-scale) {
+  animation: rise-in .3s var(--ease-out) backwards;
+}
+/* Stagger: each sibling settles a beat after the one before it. */
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(2) { animation-delay: 25ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(3) { animation-delay: 50ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(4) { animation-delay: 75ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(5) { animation-delay: 100ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(6) { animation-delay: 125ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(7) { animation-delay: 150ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(8) { animation-delay: 175ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(n+9) { animation-delay: 200ms; }
+
+/* Instrument strips draw in from the left WHEN BUILT (JS adds the one-shot
+   .grow-strip and removes it after the play, so display flips cannot
+   restart it); ruler bars and chart columns grow from their baseline. */
+.grow-strip {
+  animation: grow-x .5s var(--ease-out) backwards;
+  transform-origin: left center;
+}
+#tab-calendar.entering #sem-ruler .wk > span {
+  animation: col-in .45s var(--ease-out) backwards;
+  animation-delay: .1s;
+  transform-origin: center bottom;
+}
+.tab-panel.entering .chart .col-anim {
+  transform-box: fill-box; transform-origin: center bottom;
+  animation: col-in .45s var(--ease-out) backwards;
+}
+
+/* Theme switch cross-fades instead of snapping. The class lives on <html>
+   for ~400ms around the flip. :where() zeroes the selector's specificity so
+   the reduced-motion kill rule below (same importance, later in the file)
+   genuinely outranks it. */
+:where(html.theme-anim), :where(html.theme-anim) *,
+:where(html.theme-anim) *::before, :where(html.theme-anim) *::after {
+  transition: background-color .3s var(--ease), color .3s var(--ease),
+              border-color .3s var(--ease), fill .3s var(--ease),
+              stroke .3s var(--ease), box-shadow .3s var(--ease) !important;
+}
+
+/* ----------------------------------------------- shared small components */
+
+.skeleton {
+  border-radius: var(--r-xs);
+  position: relative; overflow: hidden;
+  background: var(--skeleton-a);
+}
+/* The sweep is a transformed overlay, not a background-position animation -
+   background-position repaints every frame; translateX composites. */
+.skeleton::after {
+  content: ""; position: absolute; inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 35%, var(--skeleton-b) 50%, transparent 65%);
+  animation: shimmer-x 1.2s linear infinite;
+}
+@keyframes shimmer-x { to { transform: translateX(100%); } }
+
+.empty-line { color: var(--text-3); font-size: 13px; padding: 10px 0; }
+
+.notice { border-radius: var(--r-sm); padding: .6rem .9rem; margin: .5rem 0; font-size: .85rem; border: 1px solid transparent; }
+.notice-warn { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
+.notice-danger { background: var(--critical-bg); color: var(--critical); border-color: var(--critical-border); }
+
+.thinking { display: flex; align-items: center; gap: .6rem; color: var(--text-3); font-size: .85rem; }
+.thinking-dots { display: inline-flex; gap: 4px; }
+.thinking-dots span {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-3);
+  animation: think 1.2s ease-in-out infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay: .18s; }
+.thinking-dots span:nth-child(3) { animation-delay: .36s; }
+@keyframes think {
+  0%, 60%, 100% { opacity: .35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+#toasts {
+  position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%);
+  z-index: 200; display: flex; flex-direction: column; gap: .5rem;
+  pointer-events: none; max-width: min(28rem, calc(100vw - 2rem));
+}
+.toast {
+  pointer-events: auto; padding: .6rem 1rem; font-size: .85rem;
+  background: var(--tip-bg); color: var(--tip-text);
+  border: 1px solid var(--tip-border); border-radius: var(--r-sm);
+  box-shadow: var(--shadow-lg); animation: toast-in .2s var(--ease-out);
+}
+.toast.toast-danger { border-color: var(--critical); }
+.toast.leaving { opacity: 0; transition: opacity .25s var(--ease); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+#chart-tip {
+  animation: fade-in .1s var(--ease);
+  position: fixed; z-index: 250; pointer-events: none;
+  background: var(--tip-bg); color: var(--tip-text); border: 1px solid var(--tip-border);
+  border-radius: var(--r-sm); padding: .6rem .75rem; font-size: .8rem;
+  line-height: 1.55; box-shadow: var(--shadow-lg); max-width: 21rem;
+}
+#chart-tip .tip-head { color: var(--tip-text); font-weight: 600; margin-bottom: .3rem; }
+#chart-tip .tip-row { color: var(--tip-text-2); display: flex; align-items: center; gap: .5rem; }
+#chart-tip .tip-row .tip-val { margin-left: auto; color: var(--tip-text); font-variant-numeric: tabular-nums; }
+.legend-swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; display: inline-block; }
+
+.axis-label { fill: var(--text-3); font-size: 10px; font-family: var(--sans); }
+.mark-label { fill: var(--text-2); font-size: 10px; font-family: var(--sans); font-variant-numeric: tabular-nums; }
+.grid-line { stroke: var(--chart-grid); stroke-width: 1; }
+.axis-line { stroke: var(--chart-axis); stroke-width: 1; }
+.bar-hit { fill: transparent; cursor: pointer; }
+.chart { width: 100%; display: block; overflow: visible; }
+
+/* ================================================================ today */
+
+#today-dateline {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 16px; font-size: 13px; font-weight: 500; color: var(--text-3);
+  letter-spacing: .01em; margin-top: 28px;
+}
+#today-wx { display: inline-flex; align-items: center; gap: 8px; }
+#today-wx svg { width: 16px; height: 16px; }
+
+#semester-rule { height: 2px; margin-top: 20px; background: var(--rule-rest); }
+#semester-fill {
+  display: block; height: 100%; width: 100%; background: var(--accent);
+  transform: scaleX(0); transform-origin: left center;
+  transition: transform .7s var(--ease-out);
+}
+#semester-note { text-align: right; font-size: 12px; color: var(--text-3); margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+#sync-line { display: flex; align-items: baseline; gap: 10px; margin-top: 24px; font-size: 14px; color: var(--text-2); flex-wrap: wrap; }
+/* A 2px inset spine anchors the notice to the page instead of a floating
+   dot; the warn state re-inks it through the existing :has hook. */
+#sync-line { position: relative; padding-left: 12px; }
+#sync-line::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px; background: var(--accent); }
+#sync-line:empty { display: none; }
+/* The update line borrows the sync line's shape but leads with the accent
+   dot, because "a newer version exists" is a thing to act on, not status. */
+#update-line {
+  display: flex; align-items: baseline; gap: 10px; margin-top: 20px;
+  font-size: 14px; color: var(--text-2); flex-wrap: wrap;
+}
+#update-line::before {
+  content: ""; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--accent); align-self: center;
+}
+#update-line:empty { display: none; }
+#update-line .ready { color: var(--text); font-weight: 500; }
+/* A quiet all-clear recedes; a broken sync does not get to look like one. */
+#sync-line .quiet { color: var(--text-3); }
+#sync-line .warn { color: var(--warning); font-weight: 500; }
+#sync-line:has(.warn)::before { background: var(--warning); }
+
+/* The greeting is the page's only display type. Weight 300, not a figure
+   weight: three words carrying no data should not wear the type reserved
+   for numbers that matter. The 60-to-11px drop to the overline below IS the
+   hierarchy, so it needs no rule, no box and no second display size. */
+#today-hello {
+  margin: 40px 0 0; font-size: clamp(34px, 6.6vw, 60px); font-weight: 300;
+  line-height: 1.05; letter-spacing: -.02em; color: var(--text);
+  text-wrap: balance;
+}
+
+/* Ask anything: an underline field, not a boxed search widget. The rule is
+   the affordance, matching the chat composer rather than the topbar pill it
+   replaced. */
+#ask-anything {
+  display: flex; align-items: baseline; gap: 12px;
+  max-width: 680px; margin-top: 26px;
+  /* A well in the ground: input zones take --bg-sunken. The bottom rule
+     stays the affordance; soft top corners keep it a well, not a box. */
+  background: var(--bg-sunken);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--rule-strong);
+  transition: border-color .15s var(--ease);
+}
+#ask-anything:focus-within { border-bottom-color: var(--accent); }
+#ask-input {
+  flex: 1; min-width: 0; background: none; border: none; outline: none;
+  padding: 6px 0; font-size: 16px; color: var(--text); font-family: inherit;
+}
+#ask-input::placeholder { color: var(--text-3); }
+/* One step up from the placeholder it submits: this is now the page's only
+   ask affordance, so it should not wear the same ink as the hint text. */
+#ask-send {
+  flex: 0 0 auto; font-size: 11px; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-2); padding: 6px 0;
+}
+#ask-anything:focus-within #ask-send { color: var(--accent); }
+#ask-send:hover:not(:disabled) { color: var(--text); }
+#ask-send:disabled { opacity: .45; cursor: default; }
+#ask-answer {
+  max-width: 680px; margin-top: 18px; font-size: 14.5px; line-height: 1.62;
+  color: var(--text-2);
+}
+#ask-answer > .text-action { margin-top: 12px; }
+
+#plan { margin-top: 40px; max-width: 680px; }
+
+/* Day groups borrow the Calendar week view's geometry so the two surfaces
+   read as one instrument. */
+.pl-day {
+  display: grid; grid-template-columns: 88px minmax(0, 1fr);
+  border-top: 1px solid var(--hairline); padding: 18px 0; position: relative;
+}
+.pl-day:first-child { border-top: none; }
+.pl-day.is-today::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 14px;
+  width: 2px; background: var(--accent);
+}
+/* Today is a ZONE: the tint bleeds from the accent bar into the ground and
+   dissolves - negative margins keep the text on the page measure. */
+.pl-day.is-today {
+  background: linear-gradient(90deg, rgba(var(--heat), .05), rgba(var(--heat), 0) 72%);
+  margin: 0 -16px; padding-left: 16px; padding-right: 16px;
+}
+.pl-rail .dow {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.pl-rail .dnum {
+  font-size: 28px; font-weight: 300; line-height: 1.15; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pl-day.is-today .pl-rail .dnum { color: var(--accent); }
+.pl-rail .rel {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3); margin-top: 2px;
+}
+.pl-day.is-today .pl-rail .rel { color: var(--accent); }
+/* Today's group renders even at zero rows, so "nothing due" is stated
+   rather than inferred from an absence. */
+.pl-empty {
+  font-size: 15px; color: var(--text-2);
+  height: 40px; display: flex; align-items: center;
+}
+
+.pl-row {
+  display: grid; align-items: center; height: 40px; gap: 0 14px; width: 100%;
+  grid-template-columns: 15px 3px 72px minmax(0, 1fr) auto 76px;
+  padding: 0 8px 0 10px; border-radius: var(--r-sm); cursor: pointer;
+  text-align: left;
+}
+
+/* The check is a hairline ring in the app's own rule language, not a drawn
+   checkbox. It stays quiet until the row is hovered or it takes focus, so a
+   list of deadlines does not read as a to-do form. */
+.pl-check {
+  width: 15px; height: 15px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--rule-strong); background: none; cursor: pointer;
+  position: relative; opacity: .45; transition: opacity .12s, border-color .12s;
+}
+.pl-row:hover .pl-check, .pl-check:focus-visible { opacity: 1; }
+.pl-check:hover { border-color: var(--text-2); }
+.pl-check::after {
+  content: ""; position: absolute; left: 3px; top: 3.5px;
+  width: 7px; height: 3.5px; border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor; transform: rotate(-45deg);
+  opacity: 0; transition: opacity .12s;
+}
+.pl-row:hover .pl-check::after { opacity: .5; }   /* previews its own result */
+.pl-check[aria-pressed="true"] {
+  opacity: 1; border-color: var(--text-3); color: var(--text-3);
+}
+.pl-check[aria-pressed="true"]::after { opacity: 1; }
+
+/* Done: three redundant channels. Strikethrough is a SHAPE, so it survives
+   grayscale, colorblindness and forced-colors, where dimming alone does not;
+   the word "done" carries it lexically; the recession is the third. */
+.pl-row.is-done .pl-title .t,
+.pl-row.is-done .pl-time { text-decoration: line-through; }
+.pl-row.is-done .pl-title .t,
+.pl-row.is-done .pl-code,
+.pl-row.is-done .pl-time { color: var(--text-3); }
+.pl-row.is-done .pl-tick { opacity: .35; }
+.pl-row.is-done .pl-note {
+  font-size: 10px; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3);
+}
+/* A finished item never wears the Next accent, whatever its date. */
+.pl-row.is-done.is-next { height: 40px; box-shadow: none; }
+.pl-row.is-done.is-next .pl-title { font-size: inherit; font-weight: inherit; }
+.pl-row { transition: background-color var(--t-ink) var(--ease); }
+.pl-row:hover { background: var(--surface-2); }
+.pl-row:hover .pl-time { color: var(--text); }
+.pl-tick { transition: transform var(--t-mark) var(--ease-out); }
+.pl-row:hover .pl-tick { transform: scaleY(1.3); }
+.pl-tick { width: 3px; height: 18px; border-radius: 1.5px; }
+.pl-code {
+  font-size: 11px; font-weight: 650; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.pl-title {
+  font-size: 15px; font-weight: 500; color: var(--text);
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+}
+/* text-overflow never applies to a flex container own text, so the title
+   text needs its own element or a long one hard-clips mid-word. */
+.pl-title .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-title .ex {
+  font-size: 10px; font-weight: 750; letter-spacing: .08em; flex-shrink: 0;
+}
+.pl-note { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.pl-time {
+  font-size: 13px; color: var(--text-3); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The next thing to do. No background fill: the row is already separated by
+   height, type size, the accent bar and the word NEXT, and a filled band is
+   the closest this page would come to the tiles that were stripped out. */
+.pl-row.is-next {
+  height: 56px; position: relative;
+  background: linear-gradient(90deg, rgba(var(--heat), .06), transparent 60%);
+}
+.pl-row.is-next::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: var(--accent); transform-origin: top;
+}
+.tab-panel.entering .pl-row.is-next::before {
+  animation: col-in .4s var(--ease-out) backwards; animation-delay: 150ms;
+}
+.pl-row.is-next .pl-title { font-size: 17px; font-weight: 560; }
+.pl-row.is-next .pl-time { font-size: 14px; font-weight: 500; color: var(--text-2); }
+.pl-row.is-next .pl-note {
+  font-size: 10.5px; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent-ink);
+}
+/* Dimmed, not red, and never moved to a footer: SPAN200 has homework due
+   before every class, so a critical treatment would cry wolf daily. */
+.pl-row.is-past .pl-title { color: var(--text-3); }
+.pl-row.is-past .pl-tick { opacity: .4; }
+.pl-more { font-size: 12px; padding: 6px 0; margin-left: 27px; }
+
+#plan-tail {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 16px; border-top: 1px solid var(--rule-strong);
+  margin-top: 8px; padding-top: 14px;
+}
+#plan-tail .val { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+#plan-tail .val b { color: var(--text); font-weight: 600; }
+#plan-tail .val .code { font-weight: 650; }
+
+/* ============================================================ analytics */
+
+#analytics-error { margin-bottom: 8px; }
+
+/* .an-fig survives: the Grades lead strip is built from it. Analytics' own
+   masthead is gone - it printed the ledger's totals footer in 26px type. */
+.an-fig { padding: 0 32px; border-left: 1px solid var(--hairline); }
+.an-fig:first-child { border-left: none; padding-left: 0; }
+.an-fig .fl { font-size: 10.5px; font-weight: 560; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.an-fig .fl .clear { color: var(--good-ink); margin-left: 5px; letter-spacing: .02em; }
+.an-fig .fv { font-size: 26px; font-weight: 620; letter-spacing: -.01em; line-height: 1.2; font-variant-numeric: tabular-nums lining-nums; }
+.an-fig .fv.good { color: var(--good-ink); }
+
+/* Lead: a sentence about the window you can act on, at Library's statement
+   scale. One figure carries emphasis; the rest is context at label size. */
+#an-lead { max-width: 760px; }
+#an-statement {
+  margin: 0; font-size: 24px; font-weight: 300; line-height: 1.35;
+  letter-spacing: -.01em; color: var(--text); text-wrap: balance;
+}
+#an-statement b { font-weight: 600; font-variant-numeric: tabular-nums; }
+#an-leadmeta {
+  margin: 8px 0 0; font-size: 12px; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.an-band { margin-top: 32px; }
+
+/* The 28-day ribbon is #sem-ruler at day resolution: same flat ground, same
+   per-slot button, same click-into-the-calendar. Bars grow from a baseline;
+   the weekday initial under each keeps the rhythm readable without a grid. */
+#an-ribbon {
+  display: flex; align-items: flex-end; gap: 3px;
+  border-bottom: 1px solid var(--hairline); padding-bottom: 0; margin-bottom: 18px;
+}
+.rb-day {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; padding: 0 0 4px;
+  height: 76px; cursor: pointer;
+}
+.rb-stack { display: flex; flex-direction: column-reverse; width: 100%; gap: 1px; }
+.rb-stack > span { display: block; width: 100%; border-radius: 1px; }
+.rb-day.weekend .rb-stack > span { opacity: .55; }
+.rb-dow {
+  font-size: 9px; font-weight: 600; letter-spacing: .04em;
+  color: var(--text-3); margin-top: 5px; text-transform: uppercase;
+}
+.rb-day:hover .rb-dow { color: var(--text-2); }
+.rb-day.is-today .rb-dow { color: var(--accent); font-weight: 750; }
+/* Today is a mark on the baseline, matching the calendar's own vocabulary. */
+.rb-day.is-today { box-shadow: inset 0 -2px 0 var(--accent); }
+.rb-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* courses ledger */
+#course-ledger { --lc-code: 96px; --lc-num: 64px; --lc-bar: 150px; }
+.cl-row {
+  display: grid; align-items: center; height: 36px;
+  grid-template-columns: 3px var(--lc-code) var(--lc-num) var(--lc-num) var(--lc-num) var(--lc-num) var(--lc-bar) minmax(0, 1fr);
+  gap: 0 16px; border-bottom: 1px solid var(--hairline);
+  font-size: 13px;
+}
+.cl-row.head {
+  height: 26px; font-size: 10.5px; font-weight: 560; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3); border-bottom: 1px solid var(--hairline);
+}
+.cl-row.total { border-top: 1px solid var(--rule-strong); border-bottom: none; font-weight: 600; }
+.cl-row.done { opacity: .45; }
+.cl-tick { width: 3px; height: 16px; border-radius: 1.5px; }
+.cl-code { font-weight: 600; }
+.cl-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 450; }
+.cl-num.zero { color: var(--ink-dim); }
+.cl-left { text-align: right; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 650; }
+.cl-bartrack { display: block; height: 4px; border-radius: 2px; position: relative; }
+.cl-bar { display: block; height: 4px; border-radius: 2px; }
+.cl-next { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-next .tag { font-weight: 650; margin-right: 6px; }
+.cl-next .tag.urgent { color: var(--critical); }
+.cl-next .tag.soon { color: var(--warning); }
+
+/* pressure column */
+.pr-day { padding: 8px 0; border-bottom: 1px solid var(--hairline); }
+.pr-day:last-child { border-bottom: none; }
+.pr-head { display: flex; gap: 10px; align-items: baseline; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pr-head .cnt { font-weight: 650; }
+.pr-item { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.pr-item .rule { width: 3px; height: 12px; border-radius: 1.5px; flex-shrink: 0; }
+.pr-item .code { font-size: 11px; font-weight: 600; }
+.pr-item .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* system band */
+/* The Index band was deleted: it was a strictly weaker copy of the Library
+   tab, which already prints the same chunk/doc counts, the same colored
+   share strip (with tooltips and keyboard access), and per-collection
+   detail the band never had. */
+
+/* ============================================================= calendar */
+
+#cal-masthead { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
+#cal-title { font-size: 40px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; margin: 0; }
+#cal-title .co { font-weight: 300; color: var(--muted); }
+#cal-nav { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+#cal-prev, #cal-next {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; color: var(--muted); border-radius: var(--r-xs);
+}
+#cal-prev:hover, #cal-next:hover { color: var(--accent); }
+#cal-prev svg, #cal-next svg { width: 18px; height: 18px; display: block; }
+#cal-today-btn { font-size: 13px; font-weight: 600; color: var(--accent); }
+#cal-hint { font-size: 11px; color: var(--text-3); letter-spacing: .02em; margin-left: 10px; white-space: nowrap; }
+#cal-right { margin-left: auto; display: inline-flex; align-items: baseline; gap: 20px; }
+/* The divider keeps "Hide classes" (a filter) from reading as a third view
+   tab beside Month/Week. */
+#cal-right [role="tablist"] { display: inline-flex; align-items: baseline; gap: 24px; border-left: 1px solid var(--rule-strong); padding-left: 20px; }
+#classes-toggle { font-size: 12.5px; font-weight: 500; }
+.cal-mode { font-size: 13px; font-weight: 600; color: var(--muted); position: relative; padding-bottom: 6px; }
+.cal-mode.active { color: var(--text); }
+/* underline now lives in the liveliness block: persistent ::after, scaleX */
+
+#cal-ruler-row { margin-top: 26px; }
+#sem-ruler { margin-top: 10px; position: relative; height: 26px; }
+#sem-ruler .base { position: absolute; left: 0; right: 0; bottom: 4px; height: 1px; background: var(--hairline); }
+#sem-ruler .bars { position: absolute; left: 0; right: 0; bottom: 5px; display: flex; justify-content: space-between; align-items: flex-end; }
+#sem-ruler .wk { width: 16px; display: flex; justify-content: center; align-items: flex-end; height: 20px; position: relative; padding: 0; }
+#sem-ruler .wk span { display: block; width: 2px; background: rgba(var(--heat), .55); }
+#sem-ruler .wk:hover span { background: rgba(var(--heat), .9); }
+#sem-ruler .wk.now span { background: var(--accent); }
+#sem-ruler .wk span.zero { height: 3px; background: var(--rule-rest); }
+#sem-ruler .wk:hover span.zero { background: var(--rule-strong); }
+
+.cal-view { transition: opacity .15s var(--ease); margin-top: 20px; }
+.cal-view.loading { opacity: .55; pointer-events: none; }
+/* Direction-aware settle when navigating months/weeks. The opacity
+   transition is suspended during a slide so the two never stack. */
+.cal-view.slide-l, .cal-view.slide-r { transition: none; }
+.cal-view.slide-l { animation: slide-l .24s var(--ease-out); }
+.cal-view.slide-r { animation: slide-r .24s var(--ease-out); }
+@keyframes slide-l { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes slide-r { from { opacity: 0; transform: translateX(14px); } }
+
+#cal-month { display: block; }
+.cm-dowrow {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 0;
+  border-bottom: 1px solid var(--grid-rule); padding-bottom: 6px;
+}
+.cm-dow {
+  font-size: 11px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted); padding-left: 9px;
+}
+/* Ruled cells: each day is enclosed so content cannot drift between columns.
+   Dropping the 12px gutter widens the track 149.7 -> 160px, but the rule and
+   the cell padding claim part of that back; 8px padding with a symmetric line
+   box nets the title lane 72px, just over the 70.7px it had unruled. */
+.cm-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; border-top: 1px solid var(--grid-rule); }
+.cm-dowrow + .cm-week { border-top: none; }   /* NOT :first-of-type - that
+                              matches by tag, and the first div is .cm-dowrow,
+                              so week 1 kept a border and the top edge drew 2px */
+#cal-month .cm-week:last-of-type { border-bottom: 1px solid var(--grid-rule); }
+.cm-day {
+  min-height: 112px; min-width: 0; padding: 10px 8px 26px 8px;
+  position: relative; border-left: 1px solid var(--grid-rule);
+}
+.cm-day:last-child { border-right: 1px solid var(--grid-rule); }
+@media (max-height: 860px) { .cm-day { min-height: 96px; } }
+/* Fade the ORDINAL hard but the content only lightly: a deadline in an
+   adjacent month's overflow days is still a live deadline. */
+.cm-day.other .cm-num { opacity: .35; }
+.cm-day.other :is(.cm-line, .cm-dots, .cm-more, .cm-due) { opacity: .65; }
+/* Empty weeks recede instead of paying full height to say "nothing". */
+.cm-week.bare .cm-day { min-height: 44px; padding-bottom: 10px; }
+.cm-band { display: flex; align-items: baseline; gap: 8px; }
+.cm-num {
+  font-size: 18px; font-weight: 300; line-height: 1.2; padding: 0;
+  font-variant-numeric: tabular-nums; color: var(--text); cursor: pointer;
+}
+.cm-num:hover { color: var(--accent); }
+.cm-num.quiet { color: var(--text-3); }
+/* TODAY = a reversed datestamp plus the word. The earlier top-edge bar failed
+   because it bound by ADJACENCY: it lay on the hairline two cells share, so it
+   read as an underline for the row above. This binds by CONTAINMENT - it
+   encloses the day's own numeral, leaving nothing to misattribute. Height
+   comes from an out-of-flow ::before, so the band keeps its line box and
+   today's deadline lines stay on their row-mates' baseline. Not a card: no
+   border, no shadow, no container, and it sizes to one glyph. Precedent in
+   this app is the toast/tooltip pair, which set reversed type on a fill.
+   NOT --accent for the fill: #2a78d6 is literally FINC313's course color in
+   light theme, so the stamp would read as a course mark. */
+.cm-day.today .cm-num {
+  position: relative;       /* containing block for the stamp */
+  isolation: isolate;       /* keeps the z-index:-1 stamp local to the numeral */
+  padding: 0 6px;           /* horizontal only: no vertical layout change */
+  color: var(--on-accent);
+  font-weight: 500;         /* 300 is too fragile reversed, in either theme */
+}
+.cm-day.today .cm-num::before {
+  content: ""; position: absolute; z-index: -1;
+  left: 0; right: 0;        /* the padding box: hugs one digit or two */
+  top: 50%; height: 24px; transform: translateY(-50%);
+  border-radius: 2px;       /* .cl-bar's radius; go DOWN to 0, never up */
+  background: var(--accent-ink);
+  transition: background-color .15s var(--ease);
+}
+html[data-theme="dark"] .cm-day.today .cm-num::before { background: var(--accent); }
+.cm-day.today .cm-num:hover::before {
+  background: color-mix(in srgb, var(--accent-ink) 86%, var(--text));
+}
+html[data-theme="dark"] .cm-day.today .cm-num:hover::before {
+  background: color-mix(in srgb, var(--accent) 86%, var(--text));
+}
+.cm-day.today .cm-num:focus-visible { outline-offset: 4px; border-radius: 2px; }
+/* Second channel, in words - the half that survives grayscale, CVD,
+   forced-colors and print, where background fills are dropped. 11px is the
+   system's existing top caps step (.cm-dow), so this adds no new type size. */
+.cm-today {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 750; letter-spacing: .09em;
+  margin-right: -.09em; text-transform: uppercase; white-space: nowrap;
+  color: var(--accent-ink);
+}
+/* The only band holding three items, so the load figure is the one piece
+   allowed to give ground - but it gives it by LEAVING, never by truncating:
+   an ellipsized count renders a wrong number ("12 due" -> "1."), and a false
+   figure is worse than an absent one. The count stays readable from the lines
+   below and the "+N more" control. */
+.cm-day.today .cm-due { white-space: nowrap; }
+@media (max-width: 1080px) { .cm-day.today .cm-due { display: none; } }
+/* Today seen as a NEIGHBORING month's overflow day de-escalates to ink: a
+   full-strength stamp would out-shout the month actually being viewed, and
+   .other's fade would collapse the knocked-out glyph's contrast anyway. */
+.cm-day.other.today .cm-num {
+  color: var(--accent); padding: 0; font-weight: 400; opacity: .6;
+}
+.cm-day.other.today .cm-num::before { display: none; }
+.cm-day.other .cm-today { display: none; }
+@media (forced-colors: active) {
+  .cm-day.today .cm-num { color: HighlightText; forced-color-adjust: none; }
+  .cm-day.today .cm-num::before { background: Highlight; }
+}
+.cm-due { font-size: 10px; font-weight: 600; color: var(--muted); }
+.cm-due.hot { color: var(--text); font-weight: 700; }
+/* The lane grid: tick | code | title at identical x-offsets in all cells,
+   so the seven columns read as aligned ledgers instead of ragged flex rows. */
+.cm-line {
+  display: grid; grid-template-columns: 9px 50px minmax(0, 1fr);
+  column-gap: 6px; align-items: center; width: 100%;
+  margin-top: 3px; font-size: 12px; font-weight: 500; line-height: 16px;
+  color: var(--text); text-align: left;
+  padding: 1px 4px; margin-left: -4px; width: calc(100% + 8px);
+  border-radius: var(--r-xs);
+}
+/* Hover sits on the clickable LINE, not the inert day cell. */
+.cm-line:hover { background: var(--surface-2); }
+.cm-line .tick { width: 3px; height: 14px; border-radius: 1.5px; justify-self: start; }
+.cm-line .cm-code {
+  font-size: 9.5px; font-weight: 650; letter-spacing: .04em;
+  text-transform: uppercase; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.cm-line .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-line .ex { font-size: 9.5px; font-weight: 750; letter-spacing: .08em; margin-right: 4px; }
+.cm-line .cont { color: var(--muted); font-weight: 400; }
+.cm-line.cont-line .txt { color: var(--muted); font-weight: 400; }
+/* Indented to the code lane so the announcement reads subordinate to data;
+   a step darker than the caps classes word so it still reads as a control. */
+.cm-more { font-size: 11px; font-weight: 550; color: var(--text-2); margin-top: 4px; margin-left: 11px; padding: 1px 4px; border-radius: var(--r-xs); }
+.cm-more:hover { background: var(--surface-2); color: var(--text); }
+.cm-dots {
+  position: absolute; bottom: 8px; left: 8px; padding: 2px 0;
+  font-size: 9.5px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.cm-dots:hover { color: var(--text); }
+
+#cal-week { max-width: 760px; }
+.cw-day { display: grid; grid-template-columns: 88px minmax(0, 1fr); border-top: 1px solid var(--hairline); padding: 20px 0; position: relative; }
+.cw-day:first-child { border-top: none; }
+.cw-day.today::before { content: ""; position: absolute; left: -16px; top: 12px; bottom: 12px; width: 2px; background: var(--accent); }
+.cw-margin .dow { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.cw-margin .dnum { font-size: 28px; font-weight: 300; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.cw-day.today .dnum { color: var(--accent); }
+.cw-margin .due { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.cw-row {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto 48px;
+  gap: 0 14px; align-items: center; min-height: 30px; width: 100%;
+  text-align: left; border-radius: var(--r-xs); cursor: pointer;
+}
+.cw-row:hover { background: var(--surface-2); }
+.cw-row .tm { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.cw-row .t { font-size: 14px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 7px; min-width: 0; }
+/* Same trap as .pl-title: text-overflow is inert on a flex container own
+   text, so the title needs its own child to ellipsize. */
+.cw-row .t .tt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-row.recur .t { font-weight: 400; color: var(--muted); }
+.cw-row .ex { font-size: 10px; font-weight: 750; letter-spacing: .08em; flex-shrink: 0; }
+.cw-row .code { font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.cw-row .cd { font-size: 11px; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.cw-row .cd.today { color: var(--accent); font-weight: 650; }
+.cw-row .cd.past, .cw-row .cd.kind { color: var(--text-3); font-weight: 400; }
+.cw-empty { font-size: 12px; color: var(--muted); align-self: center; }
+
+#event-popover {
+  position: fixed; z-index: 50; max-width: 320px; padding: 16px;
+  animation: pop-in .2s var(--ease-out); outline: none;
+  font-size: 12.5px; color: var(--muted); line-height: 1.5;
+}
+#event-popover .pop-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+#event-popover .pop-meta { margin-bottom: 10px; }
+#event-popover .pop-actions { display: flex; gap: 16px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+
+/* ================================================================= chat */
+
+#chat-rail {
+  width: 248px; flex-shrink: 0; padding: 20px 16px;
+  border-right: 1px solid var(--hairline); overflow-y: auto; min-height: 0;
+}
+.rail-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  height: 30px; padding: 0 6px; font-size: 13.5px; font-weight: 500;
+  color: var(--text-2); text-align: left; border-radius: var(--r-xs);
+  position: relative; cursor: pointer;
+}
+.rail-row:hover { color: var(--text); }
+.rail-row.selected { color: var(--text); font-weight: 600; }
+.rail-row.selected::before {
+  content: ""; position: absolute; left: -16px; top: 4px; bottom: 4px; width: 2px;
+  background: var(--rail-hue, var(--accent));
+}
+.rail-flag { width: 3px; height: 14px; border-radius: 1px; flex-shrink: 0; }
+.rail-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-count { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.rail-mark { font-size: 10px; font-weight: 650; letter-spacing: .06em; }
+.rail-mark.warn { color: var(--warning); }
+.rail-mark.bad { color: var(--critical); }
+.rail-new { font-size: 12px; color: var(--accent-ink); opacity: 0; }
+.rail-row:hover .rail-new, .rail-new:focus-visible { opacity: 1; }
+.rail-convo {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  height: 28px; padding: 0 6px 0 20px; font-size: 13px; color: var(--text-2);
+  text-align: left; border-radius: var(--r-xs); position: relative; cursor: pointer;
+  border-left: 1px solid var(--hairline); margin-left: 7px; border-radius: 0 var(--r-xs) var(--r-xs) 0;
+}
+.rail-convo:hover { color: var(--text); }
+.rail-convo.selected { color: var(--text); font-weight: 600; }
+.rail-convo .rail-name { font-weight: inherit; }
+.convo-del { color: var(--text-3); font-size: .8rem; padding: 0 .25em; opacity: 0; }
+.rail-convo:hover .convo-del, .convo-del:focus-visible { opacity: 1; }
+.convo-del:hover { color: var(--critical); }
+.convo-del.confirm { color: var(--critical); font-weight: 650; opacity: 1; }
+
+#chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* min-height: 0 is load-bearing: without it this flex child refuses to
+   shrink below its content and pushes the composer off the bottom edge. */
+#chat-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+#composer { flex-shrink: 0; }
+#chat-column { max-width: 660px; margin: 0 auto; padding: 0 48px; }
+
+#chat-masthead {
+  position: sticky; top: 0; z-index: 5; background: var(--bg);
+  display: flex; align-items: center; gap: 8px; height: 40px;
+  font-size: 13px; color: var(--text-2);
+  border-bottom: 1px solid var(--hairline);
+}
+#chat-masthead .m-tick { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+#chat-masthead .m-col { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
+#chat-masthead .m-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#chat-masthead .m-alert { font-size: 10.5px; font-weight: 650; letter-spacing: .06em; margin-left: auto; white-space: nowrap; }
+#chat-masthead .m-alert.warn { color: var(--warning); }
+#chat-masthead .m-alert.bad { color: var(--critical); }
+
+#chat-messages { padding: 24px 0 12px; }
+.msg { margin: 0 0 40px; }
+/* Only NEW turns animate (appendMessage marks them and clears the marker);
+   reopened history and tab flips stay settled. */
+.msg.msg-new { animation: msg-in .24s var(--ease-out); }
+@keyframes msg-in { from { opacity: 0; transform: translateY(8px); } }
+
+.msg-user .msg-body {
+  position: relative; font-size: 16.5px; font-weight: 600;
+  letter-spacing: -.01em; color: var(--text); white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.msg-user .msg-body::before {
+  content: ""; position: absolute; left: -20px; top: 2px; bottom: 2px; width: 2px;
+  background: var(--turn-hue, var(--accent));
+}
+.msg-user.long .msg-body { font-size: 15px; font-weight: 500; }
+.msg-user { margin-bottom: 12px; }
+
+.msg-assistant .msg-body {
+  font-size: 15px; line-height: 1.65; color: var(--text);
+  overflow-wrap: break-word;
+}
+.msg-assistant .msg-body > :first-child { margin-top: 0; }
+.msg-body p:last-child { margin-bottom: 0; }
+.msg-body pre {
+  background: var(--bg-sunken); border-radius: var(--r-sm);
+  padding: .8rem .95rem; overflow-x: auto; font-size: .84rem; font-family: var(--mono);
+}
+.msg-body code { background: var(--bg-sunken); padding: .14em .38em; border-radius: var(--r-xs); font-size: .88em; font-family: var(--mono); }
+.msg-body pre code { background: none; padding: 0; }
+.msg-body table { border-collapse: collapse; font-size: .87rem; margin: .6rem 0; display: block; max-width: 100%; overflow-x: auto; width: fit-content; }
+.msg-body th, .msg-body td { border: 1px solid var(--hairline); padding: .4rem .7rem; }
+.msg-body th { font-weight: 640; }
+.msg-body h1, .msg-body h2, .msg-body h3 { color: var(--text); letter-spacing: -.015em; margin: 1.2em 0 .5em; }
+.msg-body h1 { font-size: 17px; } .msg-body h2 { font-size: 16px; font-weight: 650; } .msg-body h3 { font-size: 15px; }
+.msg-body blockquote { border-left: 3px solid var(--rule-strong); margin: .7em 0; padding-left: .9em; color: var(--text-2); }
+.msg-body a { color: var(--accent-ink); }
+
+.msg-foot {
+  border-top: 1px solid var(--hairline); margin-top: 12px; padding-top: 6px;
+  font-size: 12px; color: var(--text-3); line-height: 1.7;
+  display: flex; gap: 12px; align-items: baseline;
+}
+.msg-foot .cites { flex: 1; min-width: 0; padding-left: 14px; text-indent: -14px; }
+.msg-foot .cite { white-space: nowrap; }
+.msg-foot .cite .ctick { display: inline-block; width: 6px; height: 6px; border-radius: 2px; margin-right: 5px; }
+.msg-foot .meta { white-space: nowrap; display: inline-flex; gap: 10px; }
+.copy-btn { font-size: 12px; color: var(--text-3); padding: 0 2px; border-radius: var(--r-xs); }
+.copy-btn:hover { color: var(--text); text-decoration: underline; }
+
+.msg-attachments { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+.msg-attachments img { max-width: 56px; max-height: 56px; border-radius: 6px; border: 1px solid var(--hairline); }
+.msg-user .msg-text:empty { display: none; }
+.msg .notice { margin: .4rem 0 0; }
+
+#composer { flex-shrink: 0; background: var(--bg); }
+#composer .composer-inner {
+  max-width: 660px; margin: 0 auto; padding: 0 48px 14px;
+}
+#composer-rule { height: 1px; background: var(--hairline); }
+#composer-rule::after {
+  content: ""; display: block; height: 2px; margin-top: -1px;
+  background: var(--comp-hue, var(--accent));
+  transform: scaleX(0); transform-origin: left center;
+  transition: transform .3s var(--ease-out);
+}
+#composer.focused #composer-rule::after { transform: scaleX(1); }
+#composer-input {
+  width: 100%; background: none; border: none; border-radius: 0; padding: 12px 0 4px;
+  font-size: 15px; line-height: 1.5; min-height: 44px; max-height: 11rem;
+  resize: none; overflow-y: auto; color: var(--text);
+}
+#composer-input:focus { border: none; }
+/* Two deliberate rows: templates, then controls. One row overstuffs the
+   660px measure and the wrapped remainder used to clip at the viewport. */
+#composer-quick {
+  display: flex; align-items: center; gap: 14px; min-height: 26px;
+  font-size: 12.5px; color: var(--text-3); flex-wrap: wrap;
+}
+#composer-meta {
+  display: flex; align-items: center; gap: 14px; min-height: 26px;
+  font-size: 12.5px; color: var(--text-3); flex-wrap: wrap;
+}
+.qa-link { font-size: 12.5px; color: var(--text-3); }
+.qa-link:hover { color: var(--text); text-decoration: underline; }
+#composer-meta .grow { flex: 1; }
+#composer-meta .hint { font-size: 11.5px; }
+#composer-send { font-size: 13px; font-weight: 600; color: var(--text-3); }
+#composer-send.ready { color: var(--accent-ink); }
+#composer-send.stop { color: var(--critical); }
+#model-btn { font-size: 12px; color: var(--text-3); }
+#model-btn:hover { color: var(--text); text-decoration: underline; }
+#composer.busy #composer-quick { opacity: .5; pointer-events: none; }
+
+#composer-previews { display: flex; flex-wrap: wrap; gap: .5rem; padding-top: 8px; }
+.att-thumb { position: relative; width: 48px; height: 48px; }
+.att-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-strong); }
+.att-remove {
+  position: absolute; top: -7px; right: -7px; width: 18px; height: 18px;
+  line-height: 1; border-radius: 50%; font-size: .75rem;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  color: var(--text-2); display: flex; align-items: center; justify-content: center;
+}
+.att-remove:hover { color: var(--critical); border-color: var(--critical); }
+#chat-main.drag-over { outline: 2px dashed var(--accent); outline-offset: -6px; }
+
+/* chat empty states */
+.title-page { padding-top: 22vh; }
+.title-page h2 {
+  display: flex; align-items: center; gap: 14px; margin: 0;
+  font-size: 32px; font-weight: 650; letter-spacing: -.02em; color: var(--text);
+}
+.title-page h2 .tp-rule { width: 3px; height: 28px; border-radius: 1.5px; }
+.title-page .tp-sub { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-top: 10px; }
+.title-page .tp-label { font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin: 32px 0 4px; }
+.tp-row {
+  display: flex; align-items: baseline; gap: 12px; width: 100%;
+  min-height: 44px; padding: 10px 0; text-align: left;
+  border-bottom: 1px solid var(--hairline); cursor: pointer;
+}
+.tp-row:hover .tp-name { color: var(--accent-ink); }
+.tp-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; }
+.tp-desc { font-size: 13px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-row .ctick { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; align-self: center; }
+.tp-row .code { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.tp-hint { font-size: 12.5px; color: var(--text-3); margin-top: 16px; }
+
+/* ============================================================== library */
+
+#lib-colophon { position: relative; }
+.lib-overline-row { display: flex; align-items: baseline; gap: 12px; }
+#lib-statement { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+#lib-statement .fig { font-size: 42px; font-weight: 650; letter-spacing: -.015em; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+#lib-statement .word { font-size: 15px; font-weight: 400; color: var(--muted); }
+#lib-health { font-size: 14px; color: var(--muted); margin-top: 12px; }
+#lib-health .warn { color: var(--warning); }
+#lib-health .bad { color: var(--critical); }
+#lib-health a { color: inherit; text-decoration: underline dotted; cursor: pointer; }
+
+#lib-shelf { display: flex; height: 10px; gap: 2px; margin: 28px 0 44px; }
+#lib-shelf span { display: block; height: 10px; border-radius: 2px; cursor: pointer; }
+html[data-theme="light"] #lib-shelf span { opacity: .9; }
+
+.lib-row { position: relative; padding: 18px 0; min-height: 60px; border-bottom: 1px solid var(--hairline); }
+.lib-row:first-of-type { border-top: 1px solid var(--hairline); }
+.lib-row .spine { position: absolute; left: -20px; top: 14px; bottom: 14px; width: 3px; border-radius: 1.5px; }
+.lib-row.flash { outline: 2px solid var(--accent); outline-offset: 6px; }
+.lib-l1 { display: flex; align-items: baseline; gap: 10px; }
+.lib-name { font-size: 17px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+.lib-assist { font-size: 11px; color: var(--muted); border: 1px solid var(--hairline); border-radius: var(--r-xs); padding: 1px 6px; }
+.lib-l1 .sp { flex: 1; }
+.lib-fig { width: 110px; text-align: right; white-space: nowrap; }
+.lib-fig.wide { width: 130px; }
+.lib-fig b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+.lib-fig span { font-size: 12px; color: var(--muted); }
+.lib-l2 { display: flex; align-items: baseline; gap: 16px; margin-top: 4px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.lib-l2 .aged { color: var(--text); font-weight: 500; }
+.lib-l2 .stale, .lib-l2 .never { color: var(--warning); }
+.lib-l2 .missing { color: var(--critical); }
+.lib-l2 .sp { flex: 1; }
+.lib-l2 details { display: inline; }
+.lib-l2 summary { display: inline; cursor: pointer; list-style: none; text-decoration: underline dotted; }
+.lib-l2 summary::-webkit-details-marker { display: none; }
+.lib-l2 .fail-sum { color: var(--warning); }
+.lib-drawer { margin: 10px 0 2px 20px; padding-left: 14px; border-left: 2px solid var(--drawer-hue, var(--hairline)); }
+.lib-drawer.warn { border-left-color: var(--warning); }
+.lib-drawer .root { font-family: var(--mono); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.lib-drawer .root .missing { color: var(--critical); font-weight: 600; }
+.lib-drawer .fail-path { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+.lib-drawer .fail-reason { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.lib-result-line { color: var(--text-2); }
+
+#lib-cal { margin-top: 64px; }
+#lib-cal-lead { font-size: 15px; margin: 20px 0 14px; color: var(--text-2); }
+#lib-cal-lead b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+#lib-cal-lead .bad { color: var(--critical); }
+.cal-src { display: flex; align-items: baseline; gap: 12px; font-size: 13.5px; margin-top: 10px; }
+.cal-src .type { width: 76px; font-variant: small-caps; color: var(--muted); flex-shrink: 0; }
+.cal-src .path { font-family: var(--mono); font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-src .figs { margin-left: auto; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cal-src .figs .bad { color: var(--critical); }
+.cal-src .st { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; align-self: center; }
+.cal-src .st.ok { background: var(--good); }
+.cal-src .st.bad { background: var(--critical); }
+.cal-src .missing-word { color: var(--critical); font-weight: 600; font-size: 12px; }
+.lib-warn-block { border-left: 2px solid var(--warning); padding-left: 14px; margin: 14px 0; font-size: 13px; color: var(--text-2); }
+#reimport-btn { margin-top: 24px; }
+#reimport-result { margin-top: 12px; font-size: 13px; color: var(--text-2); white-space: pre-line; }
+
+@media (max-width: 900px) {
+  .lib-row .spine { position: static; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+}
+
+/* ========================================================== scrollbars */
+
+html { scrollbar-color: var(--scrollbar) transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar); border-radius: 6px;
+  border: 3px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-hover); }
+
+/* ---------------------------------------------------------- responsive */
+
+@media (max-width: 900px) {
+  #topbar { gap: 20px; padding: 0 16px; }
+  #tabs { gap: 16px; }
+  .tab-panel { padding-left: 20px; padding-right: 20px; }
+  #chat-column, #composer .composer-inner { padding-left: 20px; padding-right: 20px; }
+  #chat-rail { width: 200px; }
+}
+
+/* ------------------------------------------------------ reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0s !important;      /* `backwards` fill + a delay would hold content invisible */
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0s !important;
+  }
+}
+
+
+/* ------------------------------------------- grades: The Instrument
+   Every grade becomes a mark: per-course score-field rails (one dot per
+   graded item at score/out_of percent, a full-hue needle at the course
+   percentage), a banked/lost/open points bar, split-ink fractions, and the
+   course percentages themselves as the display lead. One --gr-cols spine
+   keeps the printed axis and every band's rail in perfect register. */
+#tab-grades.active { max-width: 860px; }
+#tab-grades {
+  --gr-code: 76px;
+  --gr-cols: 3px var(--gr-code) 64px minmax(0, 1fr) 110px; /* tick/code/pct/RAIL/count */
+  --gr-indent: calc(3px + 14px + var(--gr-code) + 14px);
+}
+#grades-lead {
+  display: flex; align-items: flex-end; flex-wrap: wrap; row-gap: 12px;
+  min-height: 64px; margin-bottom: 24px;
+}
+.gr-fig { padding: 0 28px; }
+.gr-fig:first-child { padding-left: 0; }
+.gr-fig .fv { font-size: 30px; letter-spacing: -.01em; }
+.gr-fig .fv .gr-fig-pc { font-size: 14px; font-weight: 450; color: var(--text-3); margin-left: 1px; }
+.gr-fig .fv.zero { color: var(--ink-dim); }
+/* The GPA summarizes the figures beside it rather than being another course,
+   so it takes label ink instead of a course hue and a heavier rule separates
+   it. No box: the rule and the ink carry it. */
+.gr-fig.gr-gpa { border-left: none; padding-left: 0; }
+.gr-fig.gr-gpa + .gr-fig { border-left-color: var(--rule-strong); }
+.gr-fig.gr-gpa .fl { color: var(--text-3); }
+.gr-fig.gr-gpa .fv { color: var(--text); font-size: 34px; }
+.gr-letter { font-size: 11px; font-weight: 750; letter-spacing: .06em; margin-right: 6px; }
+.gr-fig-basis { font-size: 10.5px; color: var(--text-3); margin-top: 2px; }
+#gr-lead-meta { margin-left: auto; align-self: flex-end; font-size: 12px;
+  color: var(--text-3); font-variant-numeric: tabular-nums; }
+#grades-masthead { margin-bottom: 6px; }
+
+/* The axis, printed once; every rail below sits in the same grid column. */
+#gr-scale { display: grid; grid-template-columns: var(--gr-cols); gap: 0 14px;
+  align-items: end; height: 22px; margin-bottom: 2px; }
+.gr-scale-rail { grid-column: 4; position: relative; height: 100%; }
+.gr-scale-rail span { position: absolute; bottom: 6px; transform: translateX(-50%);
+  font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums lining-nums; }
+.gr-scale-rail i { position: absolute; bottom: 0; width: 1px; height: 4px;
+  transform: translateX(-50%); background: var(--chart-axis); }
+.gr-scale-rail i.pip { background: var(--chart-grid); }
+.gr-scale-cap { grid-column: 5; font-size: 10.5px; font-weight: 560;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
+  text-align: right; align-self: end; padding-bottom: 4px; }
+
+/* "Heaviest ahead": a caps label parked in the title track, the same idiom
+   #gr-scale already uses one row above. No box, no fill. */
+.gr-aheadcap {
+  grid-column: 1 / -1; font-size: 9.5px; font-weight: 650;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
+  margin: 10px 0 2px; padding-left: var(--gr-indent);
+}
+/* Coverage leads the points line; it is a fraction, never a percent, so it
+   can never be misread as a second grade. */
+.gr-cov { color: var(--text-2); font-weight: 550; }
+.gr-pnums.dim { color: var(--ink-dim); }
+
+.gr-band { padding: 8px 0 16px; border-bottom: 1px solid var(--hairline); }
+/* Same footprint as a band so the swap does not jump, but outside the
+   entrance list so the choreography plays once, on the real content. */
+.gr-skel { padding: 8px 0 16px; border-bottom: 1px solid var(--hairline); }
+/* Matches .gr-band:last-child, or the placeholder carries one extra hairline
+   and the swap to real content shifts by 1px. */
+.gr-skel:last-child { border-bottom: none; }
+.gr-band:last-child { border-bottom: none; }
+.gr-course {
+  display: grid; align-items: center; height: 40px;
+  grid-template-columns: var(--gr-cols); gap: 0 14px;
+}
+.gr-tick { width: 3px; height: 18px; border-radius: 1.5px; }
+.gr-code { font-size: 12px; font-weight: 600; }
+.gr-pct { font-size: 13px; font-weight: 650; color: var(--text);
+  font-variant-numeric: tabular-nums; }
+.gr-pct.zero { color: var(--ink-dim); }
+.gr-count { font-size: 12px; color: var(--text-3); text-align: right;
+  font-variant-numeric: tabular-nums; }
+.gr-count.zero { color: var(--ink-dim); }
+
+/* The score-field rail: spread (dots) vs standing (needle) in one glance. */
+.gr-rail { position: relative; height: 28px; }
+.gr-rail::before { content: ""; position: absolute; left: 0; right: 0;
+  top: 50%; height: 1px; background: var(--hairline); }
+/* Scales rather than resizing: width/height are layout properties, and
+   animating them on every dot under the cursor forced reflow on a rail that
+   can carry dozens of marks. transform/opacity are compositor-only. The
+   per-dot base size stays inline (weight tercile); scale multiplies it. */
+.gr-dot { position: absolute; top: 50%; transform: translate(-50%, -50%);
+  border-radius: 50%; opacity: .55; will-change: transform;
+  transition: transform .12s var(--ease), opacity .12s var(--ease); }
+.gr-dot.hot { transform: translate(-50%, -50%) scale(1.6); opacity: 1; z-index: 2; }
+.gr-needle { position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 2px; height: 16px; border-radius: 1px; z-index: 1; }
+
+/* Banked / lost / open points: solid means settled, line means open. */
+.gr-pointsrow { display: grid; grid-template-columns: var(--gr-cols);
+  gap: 0 14px; align-items: start; }
+.gr-pwrap { grid-column: 4; }
+.gr-pbar { position: relative; height: 5px; margin-top: 2px;
+  background: var(--bg-sunken); border-radius: 2px; }
+.gr-pbar .banked { position: absolute; left: 0; top: 0; height: 5px; border-radius: 2px 0 0 2px; }
+.gr-pbar .lost { position: absolute; top: 0; height: 5px; opacity: .25; }
+/* .open is gone: the sunken track IS the open remainder. */
+.gr-pbar .open { display: none; }
+.gr-pnums { margin-top: 6px; font-size: 11px; color: var(--text-3);
+  font-variant-numeric: tabular-nums; }
+.gr-pnums .dim { color: var(--ink-dim); }
+
+/* Item rows: name · quoted platform grade · meter · split-ink fraction · % */
+.gr-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 100px 72px 44px;
+  gap: 0 14px; align-items: center; min-height: 24px;
+  padding: 2px 0 2px var(--gr-indent); font-size: 12.5px;
+}
+.gr-item-name { color: var(--text-2); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.gr-tag { font-size: 10px; font-weight: 650; letter-spacing: .06em;
+  margin-left: 8px; }
+.gr-tag.bonus { color: var(--good-ink); }
+.gr-tag.excl { color: var(--text-3); }
+.gr-shown { font-style: italic; color: var(--text-3); text-align: right;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-meter { position: relative; height: 3px; border-radius: 1.5px;
+  background: var(--rule-rest); align-self: center; }
+.gr-meter b { position: absolute; left: 0; top: 0; height: 3px; border-radius: 1.5px; }
+.gr-frac { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gr-frac .n { font-size: 12px; font-weight: 500; color: var(--text); }
+.gr-frac .d { font-size: 12px; font-weight: 400; color: var(--text-3); }
+.gr-frac.zero .n, .gr-frac.zero .d { color: var(--ink-dim); }
+.gr-itempct { font-size: 12px; color: var(--text-3); text-align: right;
+  font-variant-numeric: tabular-nums; }
+.gr-itempct.zero { color: var(--ink-dim); }
+.gr-item.dimmed .gr-frac .n, .gr-item.dimmed .gr-frac .d,
+.gr-item.dimmed .gr-itempct { color: var(--ink-dim); }
+
+/* Ungraded futures: the worth carries the ink. */
+.gr-ungraded .gr-item-name { color: var(--text-3); font-weight: 400; }
+.gr-ungraded .gr-frac .n { color: var(--ink-dim); font-weight: 400; }
+.gr-ungraded .gr-frac .d { color: var(--text-2); font-weight: 450; }
+.gr-pending-toggle { margin: 4px 0 0 var(--gr-indent); font-size: 12px; }
+.gr-loading { opacity: .5; pointer-events: none; transition: opacity .15s var(--ease); }
+
+@media (max-width: 720px) {
+  .gr-scale-rail span:not(.keep) { display: none; }
+  .gr-shown { display: none; }
+  .gr-item { grid-template-columns: minmax(0, 1fr) 64px 72px 44px; }
+}
+
+/* ---- socials -----------------------------------------------------------
+   One view at a time. Today's list, all 21 venues and ~70 events stacked in
+   one column was ~97 rows of scrolling to reach anything, so the tab is
+   segmented with a filter and each row links out. */
+.soc-bar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding-bottom: 10px; border-bottom: 1px solid var(--hairline);
+}
+.soc-seg { display: flex; gap: 2px; }
+.soc-seg-btn {
+  background: none; border: 0; cursor: pointer; padding: 5px 10px;
+  border-radius: var(--r-sm); color: var(--text-3);
+  font-size: 13px; font-weight: 560;
+}
+.soc-seg-btn:hover { color: var(--text-2); background: var(--surface-2); }
+.soc-seg-btn.active { color: var(--text); background: var(--surface-2); }
+#soc-search {
+  flex: 0 1 200px; padding: 5px 9px; font: inherit; font-size: 13px;
+  color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+}
+#soc-search:focus { outline: none; border-color: var(--rule-strong); }
+.soc-meta { margin-left: auto; font-size: 12px; color: var(--text-3); }
+
+.soc-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 4px; }
+.soc-chip {
+  background: none; cursor: pointer; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--hairline); color: var(--text-3);
+  font-size: 11px; font-weight: 600; letter-spacing: .03em;
+  text-transform: capitalize;
+}
+.soc-chip:hover { color: var(--text-2); }
+.soc-chip.active {
+  color: var(--text); border-color: var(--rule-strong);
+  background: var(--surface-2);
+}
+
+/* Two lines per venue: the deals text is a sentence, and in a narrow column
+   it wrapped to six lines and made the list unreadable. */
+/* Ledger cell: glyph column spanning both lines, then head + deal line.
+   Uniform nowrap-clamped heights fuse per-cell borders into continuous
+   ledger rules across the two-column grid. */
+.soc-row {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 10px; line-height: 1.4;
+  padding: 8px 14px 9px 12px; border-bottom: 1px solid var(--hairline);
+}
+.soc-ico { grid-row: 1 / span 2; color: var(--text-3);
+  transition: color var(--t-ink) var(--ease); }
+.soc-ico svg { width: 20px; height: 20px; display: block; margin-top: 1px; }
+.soc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.soc-grid > .soc-row:nth-child(2n) { border-left: 1px solid var(--hairline); }
+@media (max-width: 900px) {
+  .soc-grid { grid-template-columns: 1fr; }
+  .soc-grid > .soc-row { border-left: 0; }
+}
+.soc-sec { margin: 18px 0 6px; padding-left: 12px; }
+.soc-sec:first-child { margin-top: 6px; }
+.soc-sec b { font-weight: 650; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.soc-sec.is-live, .soc-sec.is-live b { color: var(--accent-ink); }
+.soc-row:hover { background: var(--surface-2); }
+.soc-head { display: flex; align-items: baseline; gap: 10px; }
+.soc-name { font-weight: 560; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soc-days {
+  font-size: 10px; font-weight: 650; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-3); white-space: nowrap;
+}
+.soc-when {
+  margin-left: auto; font-size: 13px; color: var(--text-2); white-space: nowrap;
+}
+.soc-deals {
+  margin-top: 2px; font-size: 13px; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.soc-row.is-unconfirmed .soc-name { color: var(--text-3); }
+.soc-row.is-unconfirmed .soc-days { font-style: italic; text-transform: none; }
+
+/* Links stay text: an underline on hover, never a blue web link. */
+.soc-link { color: inherit; text-decoration: none; }
+.soc-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.soc-day {
+  font-size: 11px; font-weight: 650; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3);
+  margin: 18px 0 4px; padding-left: 10px;
+}
+.soc-day:first-child { margin-top: 6px; }
+.soc-ev {
+  display: grid; align-items: baseline; gap: 0 14px; min-height: 32px;
+  grid-template-columns: 22px 74px minmax(0, 1fr) minmax(0, 150px);
+  padding: 5px 8px 5px 10px; border-bottom: 1px solid var(--hairline);
+}
+.soc-ev .soc-ico { grid-row: auto; align-self: center; }
+.soc-ev .soc-ico svg { width: 16px; height: 16px; margin-top: 0; }
+.soc-ev:last-child { border-bottom: 0; }
+.soc-ev:hover { background: var(--surface-2); }
+.soc-ev-time { font-size: 13px; color: var(--text-2); white-space: nowrap; text-align: right; }
+.soc-ev-title {
+  color: var(--text); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.soc-ev-where {
+  font-size: 12px; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 780px) {
+  .soc-ev { grid-template-columns: 22px 68px minmax(0, 1fr); }
+  .soc-ev .soc-ev-where { display: none; }
+  .soc-meta { margin-left: 0; }
+}
+
+
+/* ================================================== liveliness: shared layer
+   The tactile press system. Deliberately UNTRANSITIONED: an instant 1px drop
+   reads as a mechanical click, and adding transition:transform to shared
+   classes would clobber their existing transition lists (lists replace, they
+   never merge). This enumeration IS the pressable inventory - a selector
+   enters it only if the element has a real activation handler. Presses are
+   un-animated state changes and correctly survive reduced motion. */
+:is(.tab-btn, .text-action, .link-btn, .btn, .palette-row, #theme-toggle,
+  #pip-btn, #sync-pill, .pl-more, #ask-send, .rb-day, .pr-day, .cm-line,
+  .cm-more, .cm-dots, .cm-num, .cw-row, #cal-prev, #cal-next, #cal-today-btn,
+  .cal-mode, #classes-toggle, .tp-row, .qa-link, #composer-send, #model-btn,
+  .copy-btn, .rail-new, .convo-del, .soc-seg-btn, .soc-chip, .soc-link,
+  .gr-fig, .lib-l2 summary):active:not(:disabled) {
+  transform: translateY(1px);
+}
+:is(.pl-row, .rail-row, .rail-convo):active:not(:has(button:active)) {
+  transform: translateY(1px);
+}
+.pl-check:active { transform: scale(.88); }
+#lib-shelf span:active { transform: scaleY(1.15); }
+#sem-ruler .wk:active span { transform: scaleY(.85); transform-origin: center bottom; }
+.rb-day:active .rb-stack { transform: translateY(1px); }
+.lib-l2 summary { display: inline-block; }  /* inline elements ignore transform */
+
+/* Ink transitions for word-scale controls not already covered by the shared
+   row-transition list (~line 605). Color only, so nothing is clobbered. */
+:is(.link-btn, .qa-link, .copy-btn, #model-btn, #theme-toggle,
+  #cal-prev, #cal-next) {
+  transition: color var(--t-ink) var(--ease);
+}
+
+/* Arrival: the one-shot classes settle() applies and strips. ENTRANCE plays
+   once per tab per session; ARRIVAL plays once per DATUM (empty-to-populated
+   or genuinely new nodes only - never poll repaints). */
+.settle { animation: fade-soft .3s var(--ease-out); }
+.settle-rise { animation: rise-in .25s var(--ease-out); }
+
+/* ---------------------------------------------- liveliness: analytics */
+/* Instrument washes: gradient grounds that bleed to transparent - zones,
+   never boxes. The ribbon's baseline is its existing bottom hairline. */
+#an-ribbon {
+  background: linear-gradient(to top, rgba(var(--heat), .06), rgba(var(--heat), 0) 70%);
+  padding-top: 14px;
+}
+#chart-weekload:not(.hidden) {
+  background: linear-gradient(to top, rgba(var(--heat), .05), rgba(var(--heat), 0) 55%);
+}
+.cl-bartrack { background: var(--bg-sunken); }
+
+/* Arrivals: ribbon columns grow from the baseline on entrance (delay is
+   inline per column); the lead settles as one block; ledger bars draw. */
+#tab-analytics.entering .rb-stack {
+  animation: col-in .45s var(--ease-out) backwards;
+  transform-origin: center bottom;
+}
+#tab-analytics.entering #an-lead { animation: rise-in .3s var(--ease-out) backwards; }
+#tab-analytics.entering .cl-bar {
+  animation: grow-x .5s var(--ease-out) backwards;
+  animation-delay: 180ms; transform-origin: left center;
+}
+
+/* Ribbon attention: hovered day gets ground, siblings recede; keyboard
+   parity via :has(). Peak day carries its count above the stack. */
+.rb-day { transition: background-color var(--t-ink) var(--ease); }
+.rb-day:hover { background: rgba(var(--heat), .05); }
+.rb-stack { position: relative; transition: opacity var(--t-mark) var(--ease); }
+#an-ribbon:hover .rb-day:not(:hover) .rb-stack { opacity: var(--spot-dim); }
+#an-ribbon:has(.rb-day:focus-visible) .rb-day:not(:focus-visible) .rb-stack { opacity: var(--spot-dim); }
+.rb-day.is-peak .rb-dow { color: var(--text); font-weight: 750; }
+.rb-peak {
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  margin-bottom: 2px; font-size: 10px; font-weight: 650; color: var(--text-2);
+}
+/* Ledger hover lights this course's ribbon segments; the rest recede deeper
+   than whole columns because 2-3px marks need the contrast. */
+#an-ribbon.course-spot .rb-stack > span { transition: opacity var(--t-mark) var(--ease); }
+#an-ribbon.course-spot .rb-stack > span:not(.match) { opacity: .25; }
+
+/* Chart attention. Specificity: .spot rules are (0,3,1) and MUST outrank
+   .col-past (0,2,1) so hovering a past week relights it - keep adjacent. */
+#chart-weekload g.colgrp { transition: opacity var(--t-mark) var(--ease); }
+#chart-weekload g.col-past { opacity: .55; }
+html[data-theme="dark"] #chart-weekload g.col-past { opacity: .45; }
+#chart-weekload.spot g.colgrp:not(.hot) { opacity: var(--spot-dim); }
+#chart-weekload.spot g.colgrp.hot { opacity: 1; }
+
+/* Ledger + pressure rows answer the pointer. */
+.cl-row:not(.head):not(.total) { transition: background-color var(--t-ink) var(--ease); }
+.cl-row:not(.head):not(.total):hover { background: var(--surface-2); }
+.pr-day { transition: background-color var(--t-ink) var(--ease); cursor: pointer; }
+.pr-day:hover { background: var(--surface-2); }
+#busiest-days { max-width: 560px; }
+
+/* ------------------------------------------------ liveliness: grades */
+/* The rail carries a whisper of its course hue - an instrument zone whose
+   edges dissolve, never a box. Pips continue the printed axis through
+   every band on the shared --gr-cols register. */
+.gr-rail::after {
+  content: ""; position: absolute; inset: 6px 0;
+  background: linear-gradient(90deg, transparent,
+    color-mix(in srgb, var(--rail-hue, var(--accent)) 7%, transparent) 8%,
+    color-mix(in srgb, var(--rail-hue, var(--accent)) 7%, transparent) 92%, transparent);
+  pointer-events: none;
+}
+.gr-grid { position: absolute; top: 5px; bottom: 5px; width: 1px;
+  background: var(--chart-grid); pointer-events: none; }
+@keyframes needle-in { from { opacity: 0; transform: translate(-50%, -50%) scaleY(0); } }
+
+/* Attention: rail hover recedes non-hit dots hard (2-3px marks need the
+   contrast); item rows answer the pointer and light from the rail. */
+.gr-rail.has-hot .gr-dot:not(.hot) { opacity: .18; }
+.gr-item { border-radius: var(--r-xs); transition: background-color var(--t-ink) var(--ease); }
+.gr-item:hover { background: var(--surface-2); }
+.gr-item:hover .gr-item-name { color: var(--text); }
+.gr-item.lit { background: var(--surface-2); }
+.gr-item-name { display: flex; align-items: baseline; min-width: 0; }
+.gr-item-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-tag { flex: none; }
+
+/* Item meters draw on entrance; pending meters carry the outstanding-share
+   fill at track ink (a proportion, not a score). */
+.tab-panel.entering .gr-meter b {
+  animation: grow-x .5s var(--ease-out) backwards;
+  animation-delay: 120ms; transform-origin: left center;
+}
+/* Neutral ink, clearly off the track: the fill was var(--rule-rest), which
+   IS the track color - a proportional bar invisible on its own track. Stays
+   gray on purpose: this is a share of outstanding weight, not a score. */
+.gr-meter b.pending { background: var(--text-3); opacity: .55; }
+
+/* The lead strip wakes: pointing at one course recedes the others (text
+   figures recede less than marks), and each figure is a jump target. */
+.gr-fig { transition: opacity var(--t-mark) var(--ease); cursor: pointer; }
+#grades-lead:hover .gr-fig:not(:hover) { opacity: .55; }
+
+/* ----------------------------------------------- liveliness: socials */
+/* Temporal sections carry the time story in words; state is type + one
+   inset bar. */
+/* Temporal state carried by type and one inset bar - no dots, no pills. */
+.soc-row { position: relative; transition: background-color var(--t-ink) var(--ease); }
+.soc-row.is-live {
+  background: linear-gradient(90deg, rgba(var(--heat), .06), rgba(var(--heat), 0) 70%);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.soc-row.is-live .soc-when { color: var(--accent-ink); font-weight: 600; }
+.soc-row.is-soon .soc-when { color: var(--text); }
+.soc-row.is-done { opacity: .55; }
+.soc-row.is-done:hover { opacity: .85; }
+.soc-tag {
+  font-size: 10px; font-weight: 650; letter-spacing: .07em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.soc-row.is-live .soc-tag { color: var(--accent-ink); }
+.soc-row.is-soon .soc-tag { color: var(--text-2); }
+.soc-price { font-weight: 560; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* Hover reward: the second line answers the pointer. */
+.soc-deals, .soc-when { transition: color var(--t-ink) var(--ease); }
+.soc-row:hover .soc-deals { color: var(--text-2); }
+.soc-row:hover .soc-ico { color: var(--text-2); }
+.soc-row.is-live .soc-ico { color: var(--accent-ink); }
+.soc-row:hover .soc-when { color: var(--text); }
+.soc-ev-where { transition: color var(--t-ink) var(--ease); }
+.soc-ev:hover .soc-ev-where { color: var(--text-2); }
+
+/* Controls become instruments: the seg sits in a well with a raised thumb
+   (no shadow - ground contrast only); search is a well; chips firm up. */
+.soc-seg { background: var(--bg-sunken); padding: 2px; border-radius: calc(var(--r-sm) + 2px); }
+.soc-seg-btn {
+  transition: background-color var(--t-ink) var(--ease),
+    color var(--t-ink) var(--ease);
+}
+.soc-seg-btn.active { color: var(--text); background: var(--bg); }
+#soc-search { background: var(--bg-sunken); border-color: transparent; }
+#soc-search:focus { border-color: var(--accent); }
+.soc-chip {
+  transition: color var(--t-ink) var(--ease),
+    border-color var(--t-ink) var(--ease),
+    background-color var(--t-ink) var(--ease);
+}
+.soc-chip:hover { color: var(--text-2); border-color: var(--rule-strong); background: var(--surface-2); }
+
+/* Events view: each day heading rules its own line; today is inked. */
+.soc-day { display: flex; align-items: center; gap: 10px; }
+.soc-day::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
+.soc-day.is-today { color: var(--accent-ink); }
+
+/* Entrance: socials rows join the house choreography. */
+.tab-panel.entering :is(.soc-row, .soc-ev, .soc-day) {
+  animation: rise-in .3s var(--ease-out) backwards;
+}
+.tab-panel.entering :is(.soc-row, .soc-ev, .soc-day):nth-child(2) { animation-delay: 25ms; }
+.tab-panel.entering :is(.soc-row, .soc-ev, .soc-day):nth-child(3) { animation-delay: 50ms; }
+.tab-panel.entering :is(.soc-row, .soc-ev, .soc-day):nth-child(4) { animation-delay: 75ms; }
+.tab-panel.entering :is(.soc-row, .soc-ev, .soc-day):nth-child(5) { animation-delay: 100ms; }
+.tab-panel.entering :is(.soc-row, .soc-ev, .soc-day):nth-child(n+6) { animation-delay: 125ms; }
+
+/* ---------------------------------------------- liveliness: calendar */
+/* Cell grounds: today and crunch days carry a wash UNDER the datestamp
+   system; weekends recede by ink on the ordinal, never by ground. */
+.cm-day.today { background: rgba(var(--heat), .07); }
+.cm-day.hot { background: rgba(var(--heat), .04); }
+.cm-day.weekend .cm-num { color: var(--text-3); }
+
+/* The semester ruler is an instrument: faint ground, the viewed window
+   brightens (alpha only), the now week gets a baseline mark, and bars
+   answer the pointer. */
+#sem-ruler::before {
+  content: ""; position: absolute; inset: -4px 0 0;
+  background: linear-gradient(90deg, transparent, rgba(var(--heat), .04) 6%,
+    rgba(var(--heat), .04) 94%, transparent);
+  pointer-events: none;
+}
+#sem-ruler .wk span {
+  transition: background-color .2s var(--ease), transform var(--t-mark) var(--ease-out);
+}
+#sem-ruler .wk.in-view span:not(.zero) { background: rgba(var(--heat), .85); }
+#sem-ruler .wk.now::after {
+  content: ""; position: absolute; left: 50%; bottom: -4px; width: 6px;
+  height: 2px; transform: translateX(-50%); background: var(--accent);
+}
+#sem-ruler .wk:hover span:not(.zero) { transform: scaleY(1.18); transform-origin: center bottom; }
+#sem-ruler .wk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Lines and rows answer the pointer; ticks lean in. */
+.cm-line, .cw-row { transition: background-color var(--t-ink) var(--ease); }
+.cm-line .tick { transition: transform var(--t-mark) var(--ease-out); }
+.cm-line:hover .tick { transform: scaleY(1.35); }
+
+/* Nav settle: the fresh view's lines fade in after the slide. */
+.cal-view.slide-l .cm-line, .cal-view.slide-r .cm-line {
+  animation: fade-soft .2s var(--ease-out) backwards; animation-delay: 60ms;
+}
+
+/* The mode underline slides instead of popping. */
+.cal-mode::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--accent); transform: scaleX(0); transform-origin: left center;
+  transition: transform .2s var(--ease-out);
+}
+.cal-mode.active::after { transform: scaleX(1); }
+
+/* Week view: today is a zone here too. */
+.cw-day.today { background: linear-gradient(90deg, rgba(var(--heat), .06), transparent 60%); }
+
+/* ------------------------------------------------- liveliness: chat */
+/* Two materials tell the manuscript from the desk: the rail and composer
+   band sit on the sunken ground, edge-to-edge, no border, no card. */
+#chat-rail { background: var(--bg-sunken); }
+#composer { background: var(--bg-sunken); }
+
+.rail-row, .rail-convo, .tp-row { transition: background-color var(--t-ink) var(--ease); }
+.rail-row.selected { background: color-mix(in srgb, var(--rail-hue, var(--accent)) 8%, transparent); }
+.rail-new, .convo-del { transition: opacity var(--t-mark) var(--ease); }
+#composer-send { transition: color var(--t-mark) var(--ease); }
+.thinking.leaving { opacity: 0; transition: opacity .15s var(--ease); }
+
+.tab-panel.entering :is(.rail-row, .rail-convo) {
+  animation: rise-in .3s var(--ease-out) backwards;
+}
+.tab-panel.entering :is(.rail-row, .rail-convo):nth-child(2) { animation-delay: 25ms; }
+.tab-panel.entering :is(.rail-row, .rail-convo):nth-child(3) { animation-delay: 50ms; }
+.tab-panel.entering :is(.rail-row, .rail-convo):nth-child(n+4) { animation-delay: 75ms; }
+.tab-panel.entering :is(.title-page h2, .tp-sub, .tp-label, .tp-hint) {
+  animation: rise-in .3s var(--ease-out) backwards;
+}
+
+/* ---------------------------------------------- liveliness: library */
+/* The colophon carries the instrument wash; it dissolves into the ledger. */
+#lib-colophon::before {
+  content: ""; position: absolute; inset: -24px -32px -110px;
+  background: linear-gradient(180deg, rgba(var(--heat), .06), rgba(var(--heat), 0));
+  pointer-events: none; z-index: -1;
+}
+/* Row attention: full-bleed hover wash as an overlay; the spine leans in. */
+.lib-row::before {
+  content: ""; position: absolute; inset: 0 -28px;
+  background: var(--surface-2); opacity: 0;
+  transition: opacity var(--t-mark) var(--ease); pointer-events: none;
+}
+.lib-row:hover::before, .lib-row.lit::before { opacity: 1; }
+.lib-row > * { position: relative; }
+.lib-row .spine { transition: transform var(--t-mark) var(--ease-out); transform-origin: left center; }
+.lib-row:hover .spine { transform: scaleX(1.4); }
+
+/* Shelf spotlight + two-way cross-highlight with the ledger rows. */
+#lib-shelf span {
+  transition: transform var(--t-mark) var(--ease-out), opacity var(--t-mark) var(--ease);
+  transform-origin: center;
+}
+#lib-shelf:hover span:not(:hover) { opacity: var(--spot-dim); }
+#lib-shelf span:hover, #lib-shelf span:focus-visible, #lib-shelf span.lit { transform: scaleY(1.4); }
+#lib-shelf.has-lit span:not(.lit) { opacity: var(--spot-dim); }
+#lib-shelf span:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Per-row chunk meter: each collection's share of the index, drawn right-in
+   on entrance. Fixes 83 chunks and 35,855 chunks reading identically. */
+.lib-meter {
+  display: block; height: 2px; margin: 4px 0 0 auto;
+  width: max(calc(var(--w) * 1%), 3px); border-radius: 1px; opacity: .5;
+}
+.tab-panel.entering .lib-meter {
+  animation: grow-x .5s var(--ease-out) backwards; transform-origin: right center;
+}
+
+/* Drawers settle open; a reindex pulses its spine - a true live state,
+   opacity-only, on a mark, dying with the class and under the kill block. */
+.lib-l2 details[open] .lib-drawer { animation: rise-in .22s var(--ease-out); }
+.lib-row.indexing .spine { animation: spine-pulse 1.2s ease-in-out infinite; }
+@keyframes spine-pulse { 50% { opacity: .35; } }
+
+.cal-src { transition: background-color var(--t-ink) var(--ease); }
+.cal-src:hover { background: var(--surface-2); }
+
+/* ------------------------------------------- library: the index run
+   A run is a live STATE, so it wears the page's existing live-state
+   vocabulary and adds no new one: the same inset 2px accent spine
+   #sync-line uses (sanctioned depth device (c)), one sentence on the flat
+   ground, and - only once the run has a real denominator - a proportional
+   rule. No card, no panel, no shadow, no new keyframe. */
+/* The rule and caption sit ON the page's text column and the spine hangs
+   OUT into the margin - the ledger rows' own convention (spine at -20px,
+   text on the column). Padding-left here instead pushed the whole band 12px
+   right of the shelf bar 30px below it, which read as a mistake rather than
+   a hierarchy. No inset on the spine: it has to cover the rule it belongs
+   to, or the rule reads as attached to the colophon above. */
+#lib-run {
+  position: relative; margin-top: 26px;
+  font-size: 13px; color: var(--text-2);
+}
+#lib-run::before {
+  content: ""; position: absolute; left: -20px; top: 0; bottom: 0; width: 2px;
+  background: var(--accent);
+}
+#lib-run.is-done::before { background: var(--good); }
+#lib-run.is-bad::before  { background: var(--critical); }
+/* --rule-rest is the token defined for exactly this ("unfilled part of
+   progress rules"); #semester-rule already paints it at the same 2px. */
+/* Reserved, not removed: hiding the track with display:none grew the band
+   by 10px the moment a denominator arrived, shifting the shelf and the whole
+   ledger mid-run - the exact layout jump this feature exists to avoid. */
+#lib-run-track { height: 2px; border-radius: 1px; background: var(--rule-rest); }
+#lib-run-track.is-blank { visibility: hidden; }
+/* WIDTH on a NON-TRANSITIONED element - .lib-meter's mechanism, NOT
+   #semester-fill's. #semester-fill can transition a transform because it is
+   drawn once; this value is rewritten by a poll every 1.2 seconds, and a
+   transition there is an animation on every tick under another name. */
+#lib-run-fill {
+  display: block; height: 100%; border-radius: 1px;
+  width: max(calc(var(--w, 0) * 1%), 2px); background: var(--accent);
+}
+#lib-run.is-done #lib-run-fill { background: var(--good); }
+#lib-run-line {
+  display: flex; align-items: baseline; gap: 12px; margin: 8px 0 0;
+  flex-wrap: wrap;
+}
+#lib-run-line .sp { flex: 1; }
+#lib-run-phase { color: var(--text); font-weight: 500; }
+#lib-run.is-bad #lib-run-phase { color: var(--critical); }
+/* Tabular figures on every figure, and the clock is LAST in the row: a
+   9s -> 10s tick has nothing to its right to push. */
+#lib-run-count, #lib-run-clock {
+  color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+
+/* The sync check reuses thinkingEl() and its existing @keyframes think, so
+   the in-flight mark costs no keyframe either. */
+#sync-line .thinking { align-self: baseline; font-size: 13px; }
+#sync-line .sync-clock { color: var(--text-3); font-variant-numeric: tabular-nums; }

@@ -1,0 +1,307 @@
+# Charleston happy hours - HAND-CURATED, and that is deliberate.
+#
+# A happy hour is not a calendar event. It is a standing weekly attribute of a
+# venue, and essentially nobody publishes it in a machine-readable way: a
+# city-wide search of the local events API for "happy hour" across eight days
+# matched exactly ONE venue. So this file is maintained by hand.
+#
+# THE DAYS PROBLEM, AND HOW IT WAS SOLVED. The big aggregators publish the time
+# window and the deals but NOT the day of the week - zero of 89 venues on the
+# largest list state their days. The way in: charlestonguru.com indexes the
+# same venues by day at /charleston-happy-hours/{monday..sunday}/, so ABSENCE
+# from a day page is real negative evidence. That is how Prohibition and Uptown
+# Social were established as genuinely stopping at Thursday rather than the
+# lazy "Mon-Fri" every summary assumes.
+#
+# Each row was cross-checked by a second pass that re-fetched sources
+# independently. `checked` is when that happened. Bars change hours without
+# telling anyone, so re-verify before the start of each semester.
+#
+# It ships INSIDE the app, because it is public information about public
+# businesses - every friend gets it with no setup, and a refreshed list arrives
+# through the normal app update. Anyone can override or add a venue in their
+# own calendar/happy_hours.toml, which wins on name.
+#
+# LEAVE days = "unknown" IF YOU DO NOT KNOW. An unconfirmed entry is still
+# listed, but is never shown as "on today" - sending someone across town to a
+# happy hour that does not exist is the failure this file exists to prevent.
+
+# ---------------------------------------------------------------- Upper King
+
+[[venue]]
+name = "Prohibition"
+url = "https://www.prohibitioncharleston.com/"
+address = "547 King St"
+category = "both"
+days = "Mon-Thu"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "Bar only. $7 Aperol spritz, Moscow mule, Brown Derby, draft beer, red/white wine. Snacks $6-$10."
+source = "prohibitioncharleston.com (own site) + charlestonguru day pages"
+checked = "2026-08-31"
+note = "Strongest record on the list: the venue's own site states Mon-Thu, and it is absent from the Fri/Sat/Sun day pages. Ends at 6, the earliest here, so it is easy to miss. Doors open 4pm Mon-Wed, so it starts the moment they open."
+
+[[venue]]
+name = "Share House"
+url = "https://www.sharehousechs.com/"
+address = "23 Ann St (half a block off Upper King)"
+category = "both"
+days = "Mon-Fri"
+start = "4:00 PM"
+end = "7:00 PM"
+deals = "$3 Island Active, $5 shots, $3 food menu. POWER HOUR every day 6-7pm: half-price bar. Mon $5 smash burgers; Tue $5 Surfside vodka + tea; Wed $5 margaritas (Share House Showdown); Thu $5 Red Solo Cup (live band karaoke); Sun $10 Yardy Darty."
+source = "sharehousechs.com (own site) + charlestonguru day pages"
+checked = "2026-08-31"
+note = "Two tiers, and only their own site says so: 4-7pm happy hour Mon-Fri PLUS a half-price bar 6-7pm EVERY day, which is the best value on this list and the only thing running Sat/Sun. Not on King St despite the reputation; same owners as Uptown Social."
+
+[[venue]]
+name = "Uptown Social"
+url = "https://www.uptownsocialchs.com/"
+address = "587 King St"
+category = "both"
+days = "Mon-Thu"
+start = "5:00 PM"
+end = "7:00 PM"
+deals = "Half-price frozen cocktails, $3 Island Active cans, $5 shots."
+source = "charlestonguru day pages (venue's own site publishes no happy hour)"
+checked = "2026-08-31"
+note = "Days verified by absence from the Fri/Sat/Sun day pages. Sources disagree on the exact deals (one lists $4 drafts instead), so treat the itemization as indicative; the frozen-drink discount is the consistent part."
+
+[[venue]]
+name = "Bourbon N' Bubbles"
+url = "https://www.bourbonnbubbles.com/"
+address = "570 King St"
+category = "bar"
+days = "Mon-Fri"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "Bar only. Beer, wine and bubbles $5-$8; house liquor $8; specialty cocktails $13."
+source = "venue site + aggregator cross-check"
+checked = "2026-08-31"
+
+[[venue]]
+name = "Republic Garden & Lounge"
+address = "462 King St"
+category = "bar"
+days = "Mon-Fri"
+start = "4:00 PM"
+end = "7:00 PM"
+deals = "$5 Loverboy, $5 wells, $7 mules, $7 Teeling shots, $7 Chandon."
+source = "aggregator cross-check"
+checked = "2026-08-31"
+
+[[venue]]
+name = "The Belmont"
+url = "https://thebelmontcharleston.com/"
+address = "511 King St"
+category = "bar"
+days = "Mon-Fri"
+start = "5:00 PM"
+end = "7:00 PM"
+deals = ""
+source = "venue's own site (window only)"
+checked = "2026-08-31"
+note = "The venue publishes the window but no prices anywhere, so no deals are listed here rather than invented."
+
+[[venue]]
+name = "A.C.'s Bar & Grill"
+address = "467 King St"
+category = "bar"
+days = "unknown"
+start = ""
+end = ""
+deals = "Claimed but unverified: half-price tacos, $1.50 PBR, $1 Miller High Life."
+source = "one undated page, recycled by every other site"
+checked = "2026-08-31"
+note = "DELIBERATELY UNCONFIRMED. Its own site publishes no happy hour, its Instagram has been dormant since late 2023, and it is absent from all seven day pages. Every 'Mon-Fri 4-7' hit online traces back to a single undated source wearing many hats, and a 2026 snippet quotes PBR at $2 rather than $1.50. Worth a phone call to (843) 577-6742 before trusting it."
+
+[[venue]]
+name = "Babas on Cannon"
+url = "https://babasoncannon.com/"
+address = "11 Cannon St"
+category = "both"
+days = "Tue-Thu"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "$5 Tiny Tinis, half-price bottles of wine, $30 bottled-cocktail bucket."
+source = "aggregator cross-check (corrected from a claimed Mon-Fri)"
+checked = "2026-08-31"
+
+[[venue]]
+name = "Graft Wine Bar"
+address = "700 King St"
+category = "bar"
+days = "Tue"
+start = "5:00 PM"
+end = "7:00 PM"
+deals = "Free weekly tasting."
+source = "aggregator cross-check"
+checked = "2026-08-31"
+
+# ------------------------------------------------- Downtown / French Quarter
+
+[[venue]]
+name = "The Blind Tiger Pub"
+url = "https://www.blindtigerchs.com/"
+address = "36-38 Broad St"
+category = "both"
+days = "Mon, Tue, Wed, Fri"
+start = "4:00 PM"
+end = "7:00 PM"
+deals = "$5 local drafts, $5 house liquor, $5 draft wine. Tuesday is industry night."
+source = "blindtigerchs.com live dated calendar + aggregators"
+checked = "2026-08-31"
+note = "CONFLICT WORTH KNOWING: their own site publishes a live dated calendar for the current week and it showed happy hour Mon/Tue/Wed/Fri with none on THURSDAY, while every aggregator says Mon-Fri. Do not count on Thursday. On Broad St, not King - a separate walk from the Upper King cluster."
+
+[[venue]]
+name = "The Darling Oyster Bar"
+url = "https://thedarling.com/"
+address = "513 King St"
+category = "restaurant"
+days = "Daily"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "$1.50 oysters, $1 off draft beer, $1 off draft cocktails."
+source = "aggregator cross-check"
+checked = "2026-08-31"
+note = "Sources disagree on the exact end time (some say 7pm) and on the oyster price; the 4-6 window is the conservative reading."
+
+[[venue]]
+name = "JohnKing Grill & Bar"
+url = "https://www.johnkinggrill.com/"
+address = "195 King St"
+category = "both"
+days = "Mon-Fri"
+start = "4:00 PM"
+end = "7:00 PM"
+deals = "$1 off all beer, $1 off house liquor, $1 off wine by the glass, $4 select shots. Smash burgers are the food draw."
+source = "aggregator cross-check (corrected from a claimed every-day)"
+checked = "2026-08-31"
+
+# ------------------------------------------------------------- Restaurants
+
+[[venue]]
+name = "Taco Boy"
+url = "https://tacoboy.net/"
+address = "217 Huger St"
+category = "restaurant"
+days = "Mon-Fri"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "Bar area only. Free chips and salsa. Half-price small plates: guacamole $7.50, wings $7, chips and queso $5."
+source = "venue site + independent re-check"
+checked = "2026-08-31"
+
+[[venue]]
+name = "The Matador"
+address = "475 King St"
+category = "restaurant"
+days = "Daily"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "$7 salads, quesadillas, Brussels sprouts, bean dip. $8 nachos, tacos, guacamole. A second identical late window runs most nights."
+source = "venue site + independent re-check"
+checked = "2026-08-31"
+note = "Seven days a week, which is rare here - a good fallback when the Mon-Thu places are closed."
+
+[[venue]]
+name = "Bar 167"
+url = "https://167raw.com/"
+address = "289 East Bay St"
+category = "restaurant"
+days = "Mon-Thu"
+start = "3:00 PM"
+end = "5:30 PM"
+deals = "$2 oysters, $10 fried calamari, $10 meze, $10 featured wines, $10 cocktails, $15 burger."
+source = "venue site + independent re-check"
+checked = "2026-08-31"
+note = "Cheapest oysters on the list, but it ends at 5:30 and not at all on Fridays."
+
+[[venue]]
+name = "Kickin' Chicken"
+url = "https://kickinchicken.com/"
+address = "337 King St"
+category = "restaurant"
+days = "Mon-Fri"
+start = "4:00 PM"
+end = "7:00 PM"
+deals = "$3 domestic bottles, $4 house liquor, $5 craft drafts, $6 High Noons, $6 wine by the glass."
+source = "venue site + independent re-check"
+checked = "2026-08-31"
+note = "About the most student-priced list downtown."
+
+[[venue]]
+name = "Lewis Barbecue"
+url = "https://lewisbarbecue.com/"
+address = "464 N Nassau St"
+category = "restaurant"
+days = "Mon-Fri"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "Mini nachos $6, chips and queso $6 (add brisket $2), loaded fries $6. $5 pints of Shiner Bock or Pacifico."
+source = "venue site + independent re-check"
+checked = "2026-08-31"
+
+[[venue]]
+name = "Pink Cactus"
+url = "https://www.pinkcactuschs.com/"
+address = "483 King St"
+category = "restaurant"
+days = "Tue-Sat"
+start = "4:00 PM"
+end = "6:00 PM"
+deals = "Tequila and Taco Hour. $8 house margaritas (pineapple, coconut, mango), discounted tacos."
+source = "venue site + independent re-check"
+checked = "2026-08-31"
+note = "One of the few that runs on a Saturday. Closed Sun/Mon."
+
+[[venue]]
+name = "Indaco"
+url = "https://www.indacocharleston.com/"
+address = "526 King St"
+category = "restaurant"
+days = "Mon-Fri"
+start = "5:00 PM"
+end = "7:00 PM"
+deals = "At the bar only. Bites $6-$14: pizza of the day $12, polpette $10, little gem $9, olives $6."
+source = "venue site + independent re-check"
+checked = "2026-08-31"
+
+[[venue]]
+name = "Eleve Rooftop"
+url = "https://www.elevecharleston.com/"
+address = "55 Wentworth St (atop the Grand Bohemian Hotel)"
+category = "restaurant"
+days = "Mon-Fri"
+start = "2:00 PM"
+end = "5:00 PM"
+deals = "$2 raw oysters, bites $8-$9, $9 cocktails, $5 drafts, $7 wine."
+source = "aggregator cross-check"
+checked = "2026-08-31"
+note = "Early window (ends at 5) and a rooftop splurge setting, but the oysters are genuinely cheap."
+
+[[venue]]
+name = "The Grocery"
+url = "https://thegrocerycharleston.com/"
+address = "4 Cannon St"
+category = "restaurant"
+days = "Tue-Sun"
+start = "5:00 PM"
+end = "6:00 PM"
+deals = "Half off the Produce section and pastas."
+source = "aggregator cross-check"
+checked = "2026-08-31"
+note = "Only a one-hour window, and closed Mondays."
+
+[[venue]]
+name = "Share House (Power Hour)"
+url = "https://www.sharehousechs.com/"
+address = "23 Ann St (half a block off Upper King)"
+category = "both"
+days = "Daily"
+start = "6:00 PM"
+end = "7:00 PM"
+deals = "Half-price bar, every day."
+source = "sharehousechs.com (own site)"
+checked = "2026-08-31"
+note = "Listed separately from the 4-7pm weekday happy hour because it is the only thing running on Sat/Sun. Their own site is the only place that documents it."
