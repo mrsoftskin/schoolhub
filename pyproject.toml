@@ -1,6 +1,6 @@
 [project]
 name = "schoolhub"
-version = "0.5.1"
+version = "0.5.2"
 description = "Command Center - local personal knowledge app: scoped collections, cited chat, semester calendar"
 requires-python = ">=3.12,<3.14"
 dependencies = [

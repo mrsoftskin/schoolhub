@@ -52,6 +52,10 @@ const state = {
     embedDone: 0, embedTotal: 0, elapsed: 0,
     results: new Map(),   // collection -> per-row result text, this session
   },
+  /* What the last apply did, kept so the answer outlives both the toast and
+     the row rebuild that follows an apply. Cleared when a new check finds
+     new work, because then the sentence is about the previous batch. */
+  syncApply: { running: false, said: "" },
   syncWatch: {
     watching: false, startedAt: 0, sawRunning: false, fails: 0,
     // run_id is the termination signal; baseRun is only the fallback for a
@@ -1300,12 +1304,20 @@ function describeApplied(res) {
 }
 
 function syncApply(onDone) {
-  return async ev => {
-    const btn = ev.currentTarget;
-    btn.disabled = true;
+  return async () => {
+    // Not ev.currentTarget: renderSyncLine() below destroys that node, so
+    // the running state has to be somewhere that survives the repaint.
+    if (state.syncApply.running) return;
+    state.syncApply.running = true;
+    state.syncApply.said = "";
+    renderSyncLine();                  // shows "Applying…" immediately
     try {
       const res = await api("/api/sync/apply", { method: "POST" });
-      toast(describeApplied(res), { duration: 7000 });
+      // The sentence stays on the row instead of only riding a toast that
+      // is gone in seven seconds. describeApplied already composes it.
+      state.syncApply.said = describeApplied(res);
+      state.syncApply.running = false;
+      toast(state.syncApply.said, { duration: 7000 });
       state.weekload = [];
       getAnalytics({ fresh: true });
       await pollSync();
@@ -1314,8 +1326,10 @@ function syncApply(onDone) {
       rerenderActiveTab();
       if (onDone) onDone();
     } catch (e) {
+      state.syncApply.running = false;
+      state.syncApply.said = "";
       toast(`Apply failed: ${e.message}`, { danger: true });
-      btn.disabled = false;
+      renderSyncLine();                // hands the button back
     }
   };
 }
@@ -1341,6 +1355,24 @@ function syncClockText() {
   const s = Math.round((Date.now() - state.syncWatch.startedAt) / 1000);
   return s >= 5 ? `${s}s` : "";   // a check that lands in a second must not
 }                                 // flash a number at anyone
+
+/* Apply, as a state-rendered affordance rather than a button that owns its
+   own progress. Mirrors syncActionEl: both call sites ask for the control
+   instead of holding one across a repaint. */
+function syncApplyEl(onDone) {
+  if (state.syncApply.running) return thinkingEl("Applying");
+  if (state.syncApply.said) {
+    const done = document.createElement("span");
+    done.className = "quiet";
+    done.textContent = state.syncApply.said;
+    return done;
+  }
+  const b = document.createElement("button");
+  b.className = "text-action";
+  b.textContent = "Apply to calendar";
+  b.addEventListener("click", syncApply(onDone));
+  return b;
+}
 
 function syncActionEl(label) {
   if (state.syncWatch.watching) {
@@ -1384,6 +1416,9 @@ function syncOutcomeText() {
 async function startSyncCheck() {
   const w = state.syncWatch;
   if (w.watching) return;
+  // The previous apply's sentence describes the previous batch; a new check
+  // is about to replace the batch, so it stops being the answer.
+  state.syncApply.said = "";
   Object.assign(w, {
     watching: true, startedAt: Date.now(),
     baseRunId: state.sync ? state.sync.run_id : null,
@@ -1490,11 +1525,7 @@ function openSyncPop() {
     const acts = document.createElement("div");
     acts.className = "pop-actions";
     if ((s.total_new || 0) + (s.total_moved || 0) > 0) {
-      const apply = document.createElement("button");
-      apply.className = "text-action";
-      apply.textContent = "Apply to calendar";
-      apply.addEventListener("click", syncApply(hideBarPop));
-      acts.appendChild(apply);
+      acts.appendChild(syncApplyEl(hideBarPop));
     }
     const re = document.createElement("button");
     re.className = "text-action quiet";
@@ -2013,6 +2044,11 @@ function renderSyncLine() {
       quiet.className = "quiet";
       quiet.textContent = `No deadline sites connected yet `
         + `(${unset.map(f => f.site).join(", ")}).`;
+    } else if (state.syncApply.said) {
+      // What just landed outranks "nothing new": the second is true but is
+      // not the answer to the question the user just asked by clicking.
+      quiet.className = "quiet";
+      quiet.textContent = state.syncApply.said;
     } else {
       quiet.className = "quiet";
       quiet.textContent = "No new deadlines"
@@ -2036,11 +2072,14 @@ function renderSyncLine() {
     + (items.length ? `: ${items.join("; ")}${extra}.` : ".");
   line.appendChild(text);
   if ((s.total_new || 0) + (s.total_moved || 0) > 0) {
-    const apply = document.createElement("button");
-    apply.className = "text-action";
-    apply.textContent = "Apply to calendar";
-    apply.addEventListener("click", syncApply());
-    line.appendChild(apply);
+    line.appendChild(syncApplyEl());
+  } else if (state.syncApply.said) {
+    // The work landed, so there is nothing left to apply - but the row still
+    // has to say what happened, or the only evidence was a toast.
+    const done = document.createElement("span");
+    done.className = "quiet";
+    done.textContent = state.syncApply.said;
+    line.appendChild(done);
   }
   // A failing site has to be visible even when there IS other news, or it
   // stays hidden for as long as anything else has something to say.
