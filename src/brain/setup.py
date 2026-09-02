@@ -263,6 +263,42 @@ def verify_backend(backend: str, key: str = "") -> tuple[bool, str]:
             os.environ[env_var] = previous
 
 
+def ensure_update_url(config_path, url: str = "") -> str:
+    """Add `update_url` to an existing config that predates the setting.
+
+    Without this, every copy installed before self-update existed stays on
+    manual updates FOREVER: re-running the installer and declining the
+    overwrite (the correct answer, since it preserves their courses, index and
+    deadlines) leaves the old config in place, and updates._manifest_url reads
+    settings.update_url with NO fallback to DEFAULT_UPDATE_URL. So the person
+    who most needs the updater is the one guaranteed not to get it.
+
+    Additive and idempotent: only ever inserts a missing key under [settings],
+    never edits an existing value or touches anything else in the file.
+    Returns the URL written, or "" if nothing changed.
+    """
+    import re
+    from pathlib import Path
+
+    url = (url or DEFAULT_UPDATE_URL).strip()
+    if not url:
+        return ""
+    path = Path(config_path)
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8")
+    # Already set (even to something else): the user's choice wins.
+    if re.search(r"^\s*update_url\s*=", text, re.M):
+        return ""
+    m = re.search(r"^\[settings\]\s*$", text, re.M)
+    if not m:
+        return ""
+    block = "\n# Where this copy looks for a newer build.\n" + f'update_url = "{url}"'
+    at = m.end()
+    path.write_text(text[:at] + block + text[at:], encoding="utf-8", newline="")
+    return url
+
+
 def write_env_key(env_path, var: str, value: str) -> None:
     """Set var=value in a .env file, replacing an existing line for that var
     and creating the file if needed. Values are written raw (no quoting) to

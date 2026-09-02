@@ -106,7 +106,18 @@ def init(
     target = (config or Path("config.toml")).resolve()
     if target.exists() and not typer.confirm(
             f"{target} already exists. Overwrite it?", default=False):
-        console.print("Kept the existing config. Nothing changed.")
+        # Declining is the RIGHT answer when updating - it preserves their
+        # courses, index and deadlines. But a config generated before
+        # self-update existed has no update_url, and updates._manifest_url
+        # reads that key with no fallback, so the people who already have the
+        # app would be the only ones who never get an update. Add just that
+        # one missing key; nothing else about their config is touched.
+        added = setupmod.ensure_update_url(target)
+        if added:
+            console.print("Kept the existing config, and switched on automatic "
+                          "updates for it.")
+        else:
+            console.print("Kept the existing config. Nothing changed.")
         raise typer.Exit(0)
     cfg_dir = target.parent
     cfg_dir.mkdir(parents=True, exist_ok=True)
