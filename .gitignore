@@ -44,3 +44,6 @@ dist/
 # quotes real course details, real error text and this machine's paths. The
 # dashboard reads it from disk, so nothing needs it in the repo.
 TODO.md
+
+# Draft messages to send friends. Working notes, not documentation.
+handoff/
