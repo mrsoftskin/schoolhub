@@ -280,6 +280,9 @@ textarea:focus, select:focus, input:focus { outline: none; border-color: var(--a
 }
 .overline-rule { flex: 1; height: 1px; background: var(--hairline); align-self: center; }
 .overline-meta { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The row's action sits after the meta with the same gap the rule uses, so
+   Grades and Library read as the same row built the same way. */
+#grades-action:not(:empty) { margin-left: 14px; }
 
 .keycap {
   display: inline-flex; align-items: center; justify-content: center;
@@ -425,6 +428,16 @@ textarea:focus, select:focus, input:focus { outline: none; border-color: var(--a
 .bar-pop .pop-row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .bar-pop .pop-head { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
 .bar-pop .pop-actions { display: flex; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+/* A second heading inside the float needs air above it; the first one does
+   not, because the float's own padding already gives it that. */
+.bar-pop .pop-head.pop-sec { margin-top: 12px; }
+/* Announcement titles are professor-written and run long ("COMPOUND
+   INTEREST/RULE OF 72: PLEASE READ FOR THURSDAY (9/3) CLASS!"), so the
+   title clamps and the date never gets pushed off the row. */
+.bar-pop .pop-news span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.bar-pop .pop-news b { flex: none; color: var(--text-3); font-weight: 500; }
 .bar-pop .warn { color: var(--warning); }
 .bar-pop .bad { color: var(--critical); }
 
@@ -509,20 +522,20 @@ main { flex: 1; overflow: hidden; display: flex; justify-content: center; }
    each child translated on its own stagger - stacked transforms, which is
    exactly what the note above forbids, and it read as the Grades tab
    spazzing on entry. Animate the figures, never their container. */
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row,
-  .pr-day, .tp-row, .an-fig, .gr-band, #today-hello, #plan-tail, #lib-colophon, #cal-masthead, #cal-ruler-row,
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch,
+  .cf-row, .tp-row, .an-fig, .gr-band, #today-hello, #plan-tail, #lib-colophon, #cal-masthead, #cal-ruler-row,
   #gr-scale) {
   animation: rise-in .3s var(--ease-out) backwards;
 }
 /* Stagger: each sibling settles a beat after the one before it. */
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(2) { animation-delay: 25ms; }
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(3) { animation-delay: 50ms; }
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(4) { animation-delay: 75ms; }
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(5) { animation-delay: 100ms; }
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(6) { animation-delay: 125ms; }
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(7) { animation-delay: 150ms; }
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(8) { animation-delay: 175ms; }
-.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .cl-row, .pr-day, .tp-row, .an-fig, .gr-band):nth-child(n+9) { animation-delay: 200ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(2) { animation-delay: 25ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(3) { animation-delay: 50ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(4) { animation-delay: 75ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(5) { animation-delay: 100ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(6) { animation-delay: 125ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(7) { animation-delay: 150ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(8) { animation-delay: 175ms; }
+.tab-panel.entering :is(.pl-day, .cw-day, .cm-week, .lib-row, .rn-stretch, .cf-row, .tp-row, .an-fig, .gr-band):nth-child(n+9) { animation-delay: 200ms; }
 
 /* Instrument strips draw in from the left WHEN BUILT (JS adds the one-shot
    .grow-strip and removes it after the play, so display flips cannot
@@ -854,7 +867,12 @@ main { flex: 1; overflow: hidden; display: flex; justify-content: center; }
 #plan-tail .val b { color: var(--text); font-weight: 600; }
 #plan-tail .val .code { font-weight: 650; }
 
-/* ============================================================ analytics */
+/* ============================================================ analytics
+   The run ahead: exams and projects on one line, the clear stretches
+   between them, and what the gradebook prices them at. Everything is
+   hairlines and type - the only depth is the heat wash behind the spine,
+   the sunken tracks that measure clear runs (a proportional track is the
+   one sanctioned well), and the 3px course ticks. */
 
 #analytics-error { margin-bottom: 8px; }
 
@@ -867,8 +885,8 @@ main { flex: 1; overflow: hidden; display: flex; justify-content: center; }
 .an-fig .fv { font-size: 26px; font-weight: 620; letter-spacing: -.01em; line-height: 1.2; font-variant-numeric: tabular-nums lining-nums; }
 .an-fig .fv.good { color: var(--good-ink); }
 
-/* Lead: a sentence about the window you can act on, at Library's statement
-   scale. One figure carries emphasis; the rest is context at label size. */
+/* Lead: one sentence about when the work that cannot be crammed lands, at
+   Library's statement scale. Figures carry emphasis; nothing else does. */
 #an-lead { max-width: 760px; }
 #an-statement {
   margin: 0; font-size: 24px; font-weight: 300; line-height: 1.35;
@@ -882,72 +900,139 @@ main { flex: 1; overflow: hidden; display: flex; justify-content: center; }
 
 .an-band { margin-top: 32px; }
 
-/* The 28-day ribbon is #sem-ruler at day resolution: same flat ground, same
-   per-slot button, same click-into-the-calendar. Bars grow from a baseline;
-   the weekday initial under each keeps the rhythm readable without a grid. */
-#an-ribbon {
-  display: flex; align-items: flex-end; gap: 3px;
-  border-bottom: 1px solid var(--hairline); padding-bottom: 0; margin-bottom: 18px;
+/* A band's footnote is COPY, not chrome: reading measure, no ground, no
+   rule. Every caveat this tab makes lives here in words, never in a title
+   attribute the reader has to hunt for. */
+.an-note {
+  margin: 14px 0 0; max-width: 68ch;
+  font-size: 12.5px; line-height: 1.6; color: var(--text-3);
 }
-.rb-day {
-  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: flex-end; padding: 0 0 4px;
-  height: 76px; cursor: pointer;
-}
-.rb-stack { display: flex; flex-direction: column-reverse; width: 100%; gap: 1px; }
-.rb-stack > span { display: block; width: 100%; border-radius: 1px; }
-.rb-day.weekend .rb-stack > span { opacity: .55; }
-.rb-dow {
-  font-size: 9px; font-weight: 600; letter-spacing: .04em;
-  color: var(--text-3); margin-top: 5px; text-transform: uppercase;
-}
-.rb-day:hover .rb-dow { color: var(--text-2); }
-.rb-day.is-today .rb-dow { color: var(--accent); font-weight: 750; }
-/* Today is a mark on the baseline, matching the calendar's own vocabulary. */
-.rb-day.is-today { box-shadow: inset 0 -2px 0 var(--accent); }
-.rb-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.an-note b { font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
 
-/* courses ledger */
-#course-ledger { --lc-code: 96px; --lc-num: 64px; --lc-bar: 150px; }
-.cl-row {
-  display: grid; align-items: center; height: 36px;
-  grid-template-columns: 3px var(--lc-code) var(--lc-num) var(--lc-num) var(--lc-num) var(--lc-num) var(--lc-bar) minmax(0, 1fr);
-  gap: 0 16px; border-bottom: 1px solid var(--hairline);
-  font-size: 13px;
-}
-.cl-row.head {
-  height: 26px; font-size: 10.5px; font-weight: 560; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--text-3); border-bottom: 1px solid var(--hairline);
-}
-.cl-row.total { border-top: 1px solid var(--rule-strong); border-bottom: none; font-weight: 600; }
-.cl-row.done { opacity: .45; }
-.cl-tick { width: 3px; height: 16px; border-radius: 1.5px; }
-.cl-code { font-weight: 600; }
-.cl-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 450; }
-.cl-num.zero { color: var(--ink-dim); }
-.cl-left { text-align: right; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 650; }
-.cl-bartrack { display: block; height: 4px; border-radius: 2px; position: relative; }
-.cl-bar { display: block; height: 4px; border-radius: 2px; }
-.cl-next { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cl-next .tag { font-weight: 650; margin-right: 6px; }
-.cl-next .tag.urgent { color: var(--critical); }
-.cl-next .tag.soon { color: var(--warning); }
+/* ---- the spine ------------------------------------------------------ */
+/* #sem-ruler's grammar at semester resolution with the noise removed: one
+   baseline hairline, marks that grow off it, months printed underneath.
+   Positions are percentages of the whole run and are written ONCE at build
+   - left and width are never transitioned. */
+#sp-plot { position: relative; height: 118px; margin-top: 4px; }
+#sp-rule { position: absolute; left: 0; right: 0; bottom: 46px; height: 1px;
+  background: var(--hairline); }
+#sp-marks { position: absolute; left: 0; right: 0; top: 0; bottom: 46px; }
 
-/* pressure column */
-.pr-day { padding: 8px 0; border-bottom: 1px solid var(--hairline); }
-.pr-day:last-child { border-bottom: none; }
-.pr-head { display: flex; gap: 10px; align-items: baseline; font-size: 13px; font-variant-numeric: tabular-nums; }
-.pr-head .cnt { font-weight: 650; }
-.pr-item { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-2); margin-top: 4px; }
-.pr-item .rule { width: 3px; height: 12px; border-radius: 1.5px; flex-shrink: 0; }
-.pr-item .code { font-size: 11px; font-weight: 600; }
-.pr-item .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-cp {
+  position: absolute; bottom: 0; width: 9px; transform: translateX(-50%);
+  display: flex; align-items: flex-end; justify-content: center;
+  cursor: pointer; padding: 0; background: none; border: none;
+}
+/* The wrapper owns the centering translate and the tick owns the entrance
+   scale. Sharing one element would make col-in overwrite translateX and
+   jump every mark 4.5px left for the length of the animation. */
+.sp-tick { display: block; width: 3px; border-radius: 1.5px;
+  transform-origin: center bottom; }
+.sp-cp.k-exam .sp-tick { height: 34px; }
+.sp-cp.k-project .sp-tick { height: 18px; }
+.sp-cp.is-done .sp-tick { opacity: .3; }
+.sp-cp:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-/* system band */
-/* The Index band was deleted: it was a strictly weaker copy of the Library
-   tab, which already prints the same chunk/doc counts, the same colored
-   share strip (with tooltips and keyboard access), and per-collection
-   detail the band never had. */
+/* Clear runs are proportional tracks - their width IS their share of the
+   term - which is the one case the well is for. */
+#sp-runs { position: absolute; left: 0; right: 0; bottom: 32px; height: 4px; }
+.sp-run { position: absolute; top: 0; height: 4px; border-radius: 2px;
+  background: var(--bg-sunken); transform-origin: left center; }
+.sp-run > span {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 600; color: var(--text-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#sp-months { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; }
+#sp-months > span {
+  position: absolute; bottom: 0; transform: translateX(-50%);
+  font-size: 10.5px; font-weight: 560; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3);
+}
+/* The month the run starts in is pinned to the left edge, so it must not
+   pull half of itself off the page. */
+#sp-months > span.at-start { transform: none; }
+/* Without this the left edge could read as the start of term. */
+#sp-now { position: absolute; left: 0; top: 6px; bottom: 46px; }
+#sp-now i { position: absolute; left: 0; top: 12px; bottom: 0; width: 1px;
+  background: var(--accent); transform-origin: center bottom; }
+#sp-now span { position: absolute; left: 3px; top: 0;
+  font-size: 9px; font-weight: 700; letter-spacing: .09em; color: var(--accent); }
+
+/* ---- what lands when ------------------------------------------------ */
+#run-ledger { --rn-date: 96px; --rn-kind: 58px; --rn-code: 78px; --rn-stake: 92px; }
+.rn-stretch { margin-top: 18px; }
+.rn-stretch:first-child { margin-top: 0; }
+.rn-head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 6px; }
+.rn-span { font-size: 15px; font-weight: 620; letter-spacing: -.01em;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rn-rule { flex: 1; height: 1px; background: var(--rule-strong); align-self: center; }
+.rn-facts { font-size: 12px; color: var(--text-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.rn-row {
+  display: grid; align-items: center; height: 34px; gap: 0 14px;
+  grid-template-columns: 3px var(--rn-date) var(--rn-kind) var(--rn-code)
+                         minmax(0, 1fr) var(--rn-stake);
+  border-bottom: 1px solid var(--hairline); font-size: 13px;
+  width: 100%; text-align: left; cursor: pointer;
+}
+.rn-row:last-child { border-bottom: none; }
+.rn-tick { width: 3px; height: 16px; border-radius: 1.5px; }
+.rn-date { font-variant-numeric: tabular-nums; color: var(--text-2);
+  white-space: nowrap; }
+.rn-kind { font-size: 10.5px; font-weight: 560; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3); }
+.rn-code { font-size: 12px; font-weight: 650; }
+.rn-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rn-row.is-done .rn-title { text-decoration: line-through; color: var(--ink-dim); }
+/* An empty stake cell is an absence, never a zero: the note under the band
+   names which books cannot price their work and why. */
+.rn-stake { text-align: right; font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 650; }
+.rn-stake.big { font-size: 14px; }
+/* The same gradebook item on a later date: still true, but dimmed so the
+   column cannot be scanned as three separate 25% finals. */
+.rn-stake.again { color: var(--ink-dim); font-weight: 450; }
+.rn-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* A clear run reads as a gap in the ledger, not as a row of data. */
+.rn-run {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0 9px 3px; font-size: 12px; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.rn-run .bar { flex: 0 0 auto; width: 44px; height: 3px; border-radius: 1.5px;
+  background: var(--bg-sunken); }
+
+/* ---- one item, more than one date ----------------------------------- */
+.cf-row { padding: 10px 0; border-bottom: 1px solid var(--hairline); }
+.cf-row:last-child { border-bottom: none; }
+.cf-head { display: flex; align-items: baseline; gap: 10px; font-size: 13px; }
+.cf-head .code { font-size: 12px; font-weight: 650; }
+.cf-head .nm { font-weight: 600; }
+.cf-head .stake { font-weight: 650; font-variant-numeric: tabular-nums; }
+.cf-when { display: flex; gap: 12px; font-size: 12px; color: var(--text-2);
+  margin-top: 4px; }
+.cf-when .d { flex: 0 0 96px; color: var(--text-3);
+  font-variant-numeric: tabular-nums; }
+.cf-when .t { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+/* Narrow: the kind column and the head rule go first - the date, the course
+   and the stake are what the row is for. */
+@media (max-width: 820px) {
+  #run-ledger { --rn-date: 84px; --rn-code: 68px; --rn-stake: 58px; }
+  .rn-row {
+    gap: 0 10px;
+    grid-template-columns: 3px var(--rn-date) var(--rn-code)
+                           minmax(0, 1fr) var(--rn-stake);
+  }
+  .rn-kind { display: none; }
+  .rn-head { flex-wrap: wrap; }
+  .rn-rule { display: none; }
+  .cf-when .d { flex-basis: 62px; }
+}
 
 /* ============================================================= calendar */
 
@@ -1721,7 +1806,7 @@ html { scrollbar-color: var(--scrollbar) transparent; }
    enters it only if the element has a real activation handler. Presses are
    un-animated state changes and correctly survive reduced motion. */
 :is(.tab-btn, .text-action, .link-btn, .btn, .palette-row, #theme-toggle,
-  #pip-btn, #sync-pill, .pl-more, #ask-send, .rb-day, .pr-day, .cm-line,
+  #pip-btn, #sync-pill, .pl-more, #ask-send, .rn-row, .cm-line,
   .cm-more, .cm-dots, .cm-num, .cw-row, #cal-prev, #cal-next, #cal-today-btn,
   .cal-mode, #classes-toggle, .tp-row, .qa-link, #composer-send, #model-btn,
   .copy-btn, .rail-new, .convo-del, .soc-seg-btn, .soc-chip, .soc-link,
@@ -1734,7 +1819,7 @@ html { scrollbar-color: var(--scrollbar) transparent; }
 .pl-check:active { transform: scale(.88); }
 #lib-shelf span:active { transform: scaleY(1.15); }
 #sem-ruler .wk:active span { transform: scaleY(.85); transform-origin: center bottom; }
-.rb-day:active .rb-stack { transform: translateY(1px); }
+.sp-cp:active .sp-tick { transform: translateY(1px); }
 .lib-l2 summary { display: inline-block; }  /* inline elements ignore transform */
 
 /* Ink transitions for word-scale controls not already covered by the shared
@@ -1751,60 +1836,46 @@ html { scrollbar-color: var(--scrollbar) transparent; }
 .settle-rise { animation: rise-in .25s var(--ease-out); }
 
 /* ---------------------------------------------- liveliness: analytics */
-/* Instrument washes: gradient grounds that bleed to transparent - zones,
-   never boxes. The ribbon's baseline is its existing bottom hairline. */
-#an-ribbon {
-  background: linear-gradient(to top, rgba(var(--heat), .06), rgba(var(--heat), 0) 70%);
-  padding-top: 14px;
+/* Instrument wash: a gradient ground that bleeds to transparent at the top
+   and at both ends - a zone, never a box. It sits on ::before rather than on
+   #sp-plot because masking the element itself would fade the marks and the
+   NOW needle standing at its edges. */
+#sp-plot::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 46px;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(var(--heat), .07), rgba(var(--heat), 0) 66%);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent);
 }
-#chart-weekload:not(.hidden) {
-  background: linear-gradient(to top, rgba(var(--heat), .05), rgba(var(--heat), 0) 55%);
-}
-.cl-bartrack { background: var(--bg-sunken); }
 
-/* Arrivals: ribbon columns grow from the baseline on entrance (delay is
-   inline per column); the lead settles as one block; ledger bars draw. */
-#tab-analytics.entering .rb-stack {
+/* Arrivals. Marks grow off the baseline, tracks and the rule draw from the
+   left, the lead settles as one block. Transform and opacity only: the
+   percentage left/width on every mark and track is written once at build
+   and never transitioned. */
+#tab-analytics.entering .sp-tick {
   animation: col-in .45s var(--ease-out) backwards;
-  transform-origin: center bottom;
+}
+#tab-analytics.entering #sp-now i {
+  animation: col-in .45s var(--ease-out) backwards; animation-delay: 60ms;
+}
+#tab-analytics.entering #sp-rule,
+#tab-analytics.entering .sp-run {
+  animation: grow-x .5s var(--ease-out) backwards;
+  animation-delay: 200ms; transform-origin: left center;
 }
 #tab-analytics.entering #an-lead { animation: rise-in .3s var(--ease-out) backwards; }
-#tab-analytics.entering .cl-bar {
-  animation: grow-x .5s var(--ease-out) backwards;
-  animation-delay: 180ms; transform-origin: left center;
-}
 
-/* Ribbon attention: hovered day gets ground, siblings recede; keyboard
-   parity via :has(). Peak day carries its count above the stack. */
-.rb-day { transition: background-color var(--t-ink) var(--ease); }
-.rb-day:hover { background: rgba(var(--heat), .05); }
-.rb-stack { position: relative; transition: opacity var(--t-mark) var(--ease); }
-#an-ribbon:hover .rb-day:not(:hover) .rb-stack { opacity: var(--spot-dim); }
-#an-ribbon:has(.rb-day:focus-visible) .rb-day:not(:focus-visible) .rb-stack { opacity: var(--spot-dim); }
-.rb-day.is-peak .rb-dow { color: var(--text); font-weight: 750; }
-.rb-peak {
-  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-  margin-bottom: 2px; font-size: 10px; font-weight: 650; color: var(--text-2);
-}
-/* Ledger hover lights this course's ribbon segments; the rest recede deeper
-   than whole columns because 2-3px marks need the contrast. */
-#an-ribbon.course-spot .rb-stack > span { transition: opacity var(--t-mark) var(--ease); }
-#an-ribbon.course-spot .rb-stack > span:not(.match) { opacity: .25; }
+/* Attention: the hovered mark keeps its ink and its siblings recede, with
+   keyboard parity via :has(). Hovering a ledger row lights that one mark,
+   which is the pairing the old ledger-to-ribbon cross-light was reaching
+   for before the ribbon went. */
+.sp-tick { transition: opacity var(--t-mark) var(--ease); }
+#sp-marks:hover .sp-cp:not(:hover) .sp-tick { opacity: var(--spot-dim); }
+#sp-marks:has(.sp-cp:focus-visible) .sp-cp:not(:focus-visible) .sp-tick { opacity: var(--spot-dim); }
+#sp-marks.row-spot .sp-cp:not(.match) .sp-tick { opacity: .22; }
 
-/* Chart attention. Specificity: .spot rules are (0,3,1) and MUST outrank
-   .col-past (0,2,1) so hovering a past week relights it - keep adjacent. */
-#chart-weekload g.colgrp { transition: opacity var(--t-mark) var(--ease); }
-#chart-weekload g.col-past { opacity: .55; }
-html[data-theme="dark"] #chart-weekload g.col-past { opacity: .45; }
-#chart-weekload.spot g.colgrp:not(.hot) { opacity: var(--spot-dim); }
-#chart-weekload.spot g.colgrp.hot { opacity: 1; }
-
-/* Ledger + pressure rows answer the pointer. */
-.cl-row:not(.head):not(.total) { transition: background-color var(--t-ink) var(--ease); }
-.cl-row:not(.head):not(.total):hover { background: var(--surface-2); }
-.pr-day { transition: background-color var(--t-ink) var(--ease); cursor: pointer; }
-.pr-day:hover { background: var(--surface-2); }
-#busiest-days { max-width: 560px; }
+.rn-row { transition: background-color var(--t-ink) var(--ease); }
+.rn-row:hover { background: var(--surface-2); }
 
 /* ------------------------------------------------ liveliness: grades */
 /* The rail carries a whisper of its course hue - an instrument zone whose
@@ -2010,13 +2081,12 @@ html[data-theme="dark"] #chart-weekload g.col-past { opacity: .45; }
 
 /* Per-row chunk meter: each collection's share of the index, drawn right-in
    on entrance. Fixes 83 chunks and 35,855 chunks reading identically. */
-.lib-meter {
-  display: block; height: 2px; margin: 4px 0 0 auto;
-  width: max(calc(var(--w) * 1%), 3px); border-radius: 1px; opacity: .5;
-}
-.tab-panel.entering .lib-meter {
-  animation: grow-x .5s var(--ease-out) backwards; transform-origin: right center;
-}
+/* The per-collection share meter was removed 2026-09-02. Measured against
+   the real library it could not encode the distribution: obsidian's 79.3%
+   drew 103px while 2.3%, 0.8% and 0.6% all clamped to the same 3px floor,
+   so three collections looked identical when one held four times another.
+   The chunk count sits beside it in tabular figures and carries the fact
+   honestly; a bar that is wrong for three of seven rows was decoration. */
 
 /* Drawers settle open; a reindex pulses its spine - a true live state,
    opacity-only, on a mark, dying with the class and under the kill block. */
@@ -2056,9 +2126,9 @@ html[data-theme="dark"] #chart-weekload g.col-past { opacity: .45; }
    ledger mid-run - the exact layout jump this feature exists to avoid. */
 #lib-run-track { height: 2px; border-radius: 1px; background: var(--rule-rest); }
 #lib-run-track.is-blank { visibility: hidden; }
-/* WIDTH on a NON-TRANSITIONED element - .lib-meter's mechanism, NOT
-   #semester-fill's. #semester-fill can transition a transform because it is
-   drawn once; this value is rewritten by a poll every 1.2 seconds, and a
+/* WIDTH on a NON-TRANSITIONED element, deliberately NOT #semester-fill's
+   mechanism. #semester-fill can transition a transform because it is drawn
+   once; this value is rewritten by a poll every 1.2 seconds, and a
    transition there is an animation on every tick under another name. */
 #lib-run-fill {
   display: block; height: 100%; border-radius: 1px;

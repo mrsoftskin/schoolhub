@@ -90,46 +90,55 @@
     </div>
   </section>
 
-  <!-- ANALYTICS: Operations Ledger ------------------------------------ -->
+  <!-- ANALYTICS: The Run Ahead ---------------------------------------
+       Exams and projects only, from today to the last one. The subtraction
+       is the whole point: a calendar renders every row at equal weight, and
+       93 of the rows ahead are quizzes - 35 of them one repeating SPAN200
+       chore - so density on the month grid and on #sem-ruler is dominated
+       by work that needs no lead time. The bands this replaced counted work
+       that exists, which Today and Calendar already say twice, and the
+       loudest figure on the old tab ("peak 24") was class attendance. -->
   <section id="tab-analytics" class="tab-panel" tabindex="-1" role="tabpanel" aria-label="Analytics">
-    <h1 class="sr-only">Analytics</h1>
+    <h1 class="sr-only">The run ahead</h1>
     <div id="analytics-error"></div>
-    <!-- The old masthead printed deadlines/exams/quizzes/projects in 26px
-         type, the same four numbers the ledger's own totals footer prints
-         further down the same screen. A lead should say something the page
-         does not already say twice. -->
     <div id="an-lead">
       <p id="an-statement"></p>
       <p id="an-leadmeta"></p>
     </div>
-    <div class="an-band" id="an-pressure">
+    <div class="an-band" id="an-spine">
       <div class="overline-row">
-        <h2 class="overline">Next 28 days</h2>
+        <h2 class="overline">The run ahead</h2>
         <span class="overline-rule"></span>
-        <span class="overline-meta" id="ribbon-meta"></span>
+        <span class="overline-meta" id="spine-meta"></span>
       </div>
-      <!-- Day resolution, from analytics.daily_load - shipped in every
-           payload and previously read by nothing. -->
-      <div id="an-ribbon"></div>
-      <div id="busiest-days"></div>
+      <div id="sp-plot">
+        <div id="sp-runs" aria-hidden="true"></div>
+        <div id="sp-marks"></div>
+        <div id="sp-rule" aria-hidden="true"></div>
+        <div id="sp-now" aria-hidden="true"><i></i><span>NOW</span></div>
+        <div id="sp-months" aria-hidden="true"></div>
+      </div>
+      <p class="an-note" id="sp-note"></p>
     </div>
-    <div class="an-band" id="an-courses">
+    <div class="an-band" id="an-ledger">
       <div class="overline-row">
-        <h2 class="overline">Courses</h2>
+        <h2 class="overline">What lands when</h2>
         <span class="overline-rule"></span>
-        <span class="overline-meta" id="courses-meta"></span>
+        <span class="overline-meta" id="ledger-meta"></span>
       </div>
-      <div id="course-ledger"></div>
+      <div id="run-ledger"></div>
+      <p class="an-note" id="ledger-note"></p>
     </div>
-    <div class="an-band" id="an-workload">
+    <!-- Hidden until the join actually finds one. An empty band that says
+         "no contradictions" is a band that costs a screen to say nothing. -->
+    <div class="an-band hidden" id="an-doubles">
       <div class="overline-row">
-        <h2 class="overline">Semester</h2>
+        <h2 class="overline">One item, more than one date</h2>
         <span class="overline-rule"></span>
-        <span class="overline-meta" id="workload-meta"></span>
+        <span class="overline-meta" id="doubles-meta"></span>
       </div>
-      <svg id="chart-weekload" class="chart" role="img"
-           aria-label="Events per week across the semester, stacked by course"></svg>
-      <div id="workload-empty" class="empty-line hidden"></div>
+      <div id="doubles-list"></div>
+      <p class="an-note" id="doubles-note"></p>
     </div>
   </section>
 
@@ -142,6 +151,7 @@
         <h2 class="overline">Gradebooks</h2>
         <span class="overline-rule"></span>
         <span class="overline-meta" id="grades-meta"></span>
+        <span id="grades-action"></span>
       </div>
     </div>
     <div id="gr-scale" aria-hidden="true"></div>

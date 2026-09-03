@@ -47,3 +47,10 @@ TODO.md
 
 # Draft messages to send friends. Working notes, not documentation.
 handoff/
+
+# Design research for work still in progress. Same reason as TODO.md above:
+# it quotes real syllabus text, real grading scales and real course codes, so
+# it is local reading material for whoever picks the work up, not something
+# to publish. Anything here that becomes documentation gets rewritten without
+# the course specifics first.
+docs/design-notes/

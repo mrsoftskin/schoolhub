@@ -214,10 +214,16 @@ def test_a_dead_feed_is_reported_and_the_others_still_load(tmp_path, monkeypatch
             data_dir = tmp_path
         calendar = None
 
+    # Relative to today, not a literal date: fetch_events filters out past
+    # events, so a hardcoded DTSTART silently becomes a permanent failure the
+    # day it slips into the past. Tomorrow is always inside the days=30 window.
+    from datetime import date, timedelta
+
+    start = (date.today() + timedelta(days=1)).strftime("%Y%m%d")
     good = tmp_path / "good.ics"
     good.write_text(
         "BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:1\n"
-        "SUMMARY:Cougars vs Citadel\nDTSTART:20260902T230000Z\n"
+        f"SUMMARY:Cougars vs Citadel\nDTSTART:{start}T230000Z\n"
         "END:VEVENT\nEND:VCALENDAR\n", encoding="utf-8")
 
     def fake_fetch(url, data_dir):

@@ -1502,6 +1502,44 @@ function endSyncCheck(kind) {
   }
 }
 
+/* Marking news read is not just dismissing a badge: the server files each
+   announcement as Markdown under <course>/_synced/announcements/ so Chat can
+   cite it, and then indexes those courses. So the copy says what it does. */
+function newsReadEl() {
+  const b = document.createElement("button");
+  b.className = "text-action";
+  b.textContent = "Mark read";
+  b.addEventListener("click", async () => {
+    b.disabled = true;
+    b.textContent = "Filing…";
+    try {
+      const res = await api("/api/sync/news/apply", { method: "POST" });
+      hideBarPop();
+      // The endpoint hands back the whole refreshed status, so take it
+      // rather than firing another poll for something we already have.
+      if (res.status) state.sync = res.status;
+      renderSyncChrome();
+      renderSyncLine();
+      const n = res.saved || 0;
+      toast(n
+        ? `Filed ${plural(n, "announcement")} - Chat can cite them now.`
+        : "Announcements marked read.");
+      // news/apply starts its own background index of the touched courses,
+      // and that run is server-global, so the Library band adopts it exactly
+      // as it would a run this tab started.
+      if (res.indexing) attachIndexRun();
+      for (const e of (res.errors || [])) {
+        toast(`${e.site}: ${e.message}`, { danger: true });
+      }
+    } catch (e) {
+      b.disabled = false;
+      b.textContent = "Mark read";
+      toast(`Could not file the announcements: ${e.message}`, { danger: true });
+    }
+  });
+  return b;
+}
+
 function openSyncPop() {
   const s = state.sync;
   if (!s) return;
@@ -1522,11 +1560,37 @@ function openSyncPop() {
       more.textContent = `+${s.new_items.length - 6} more`;
       pop.appendChild(more);
     }
+    /* Announcements are course NEWS, not deadlines, and they get their own
+       heading rather than being mixed into the list above: applying a
+       deadline writes your calendar, marking news read files it for Chat.
+       Two different consequences must not look like one list. */
+    const news = s.announcements || [];
+    if (news.length) {
+      const nh = document.createElement("div");
+      nh.className = "pop-head pop-sec";
+      nh.textContent = plural(news.length, "announcement");
+      pop.appendChild(nh);
+      for (const a of news.slice(0, 6)) {
+        const r = document.createElement("div");
+        r.className = "pop-row pop-news";
+        r.title = `${a.course}: ${a.title}`;
+        r.innerHTML = `<span>${escapeHtml(`${a.course}: ${a.title}`)}</span>`
+          + `<b>${escapeHtml(a.date || "")}</b>`;
+        pop.appendChild(r);
+      }
+      if (news.length > 6) {
+        const more = document.createElement("div");
+        more.className = "pop-row";
+        more.textContent = `+${news.length - 6} more`;
+        pop.appendChild(more);
+      }
+    }
     const acts = document.createElement("div");
     acts.className = "pop-actions";
     if ((s.total_new || 0) + (s.total_moved || 0) > 0) {
       acts.appendChild(syncApplyEl(hideBarPop));
     }
+    if (news.length) acts.appendChild(newsReadEl());
     const re = document.createElement("button");
     re.className = "text-action quiet";
     re.textContent = "Re-check";
@@ -2403,25 +2467,43 @@ document.addEventListener("visibilitychange", () => {
 
 /* ============================================================ analytics */
 
-function bandEmpty(id, msg) {
-  const el = $(id);
-  if (!el) return;
-  el.textContent = msg || "";
-  el.classList.toggle("hidden", !msg);
+/* One cache-only read of /api/grades, shared with the Grades tab. That GET
+   never hits the network - the live scrape is the POST - so this tab is free
+   to pull it, and renderGrades stores the same payload in _lastGrades, so
+   whichever tab is opened first pays for both. */
+let _gradesPromise = null;
+
+function getGradesCached() {
+  if (_lastGrades) return Promise.resolve(_lastGrades);
+  if (!_gradesPromise) {
+    _gradesPromise = api("/api/grades")
+      .then(g => (_lastGrades = g, g))
+      .catch(e => { _gradesPromise = null; throw e; });
+  }
+  return _gradesPromise;
 }
 
 async function loadAnalytics() {
   const errBox = $("#analytics-error");
-  // #an-lead replaced #an-masthead; keep-last-data-on-failure keys off it.
-  const hasContent = $("#course-ledger").childElementCount > 0;
-  let a;
-  try { a = await getAnalytics(); }
-  catch (e) {
+  // Keep-last-data-on-failure keys off the ledger, the band that is always
+  // populated when the tab has rendered at all.
+  const hasContent = $("#run-ledger").childElementCount > 0;
+  const start = startOfDay(new Date());
+  // /api/events, not /api/analytics: it is the only payload decorated with
+  // `done`, so ticking work off on Today actually reaches this tab. The
+  // grades read is allowed to fail on its own - the run is a calendar
+  // reading, and it renders complete with every stake cell blank.
+  const [ev, gr] = await Promise.allSettled([
+    fetchEvents(start, addDays(start, RUN_HORIZON)),
+    getGradesCached(),
+  ]);
+  if (ev.status === "rejected") {
+    const msg = ev.reason ? ev.reason.message : "unknown error";
     if (hasContent) {
-      errBox.innerHTML = `<div class="notice notice-warn">Refresh failed (${escapeHtml(e.message)}). Showing the last loaded data.</div>`;
+      errBox.innerHTML = `<div class="notice notice-warn">Refresh failed (${escapeHtml(msg)}). Showing the last loaded data.</div>`;
     } else {
-      errBox.innerHTML = `<div class="notice notice-danger">Failed to load analytics: ${escapeHtml(e.message)}</div>`;
-      announce("Failed to load analytics: " + e.message);
+      errBox.innerHTML = `<div class="notice notice-danger">Failed to load: ${escapeHtml(msg)}</div>`;
+      announce("Failed to load the run ahead: " + msg);
     }
     return;
   }
@@ -2431,10 +2513,10 @@ async function loadAnalytics() {
   // stale tab: markup and script drift apart across a deploy, an id comes
   // back null, and the render aborts halfway. Say so, and name the fix.
   try {
-    renderAnalytics(a);
+    renderAnalytics(ev.value, gr.status === "fulfilled" ? gr.value : null);
   } catch (err) {
     errBox.innerHTML = `<div class="notice notice-danger">`
-      + `Analytics failed to render: ${escapeHtml(err.message)}. `
+      + `The run ahead failed to render: ${escapeHtml(err.message)}. `
       + `If the app was just updated, reload the page (Ctrl+Shift+R).</div>`;
     throw err;   // still reaches the console for a real diagnosis
   }
@@ -2509,14 +2591,21 @@ function gradesMetaLine(g) {
   if (ageH !== null) {
     meta.appendChild(document.createTextNode(
       ageH < 1 ? "fetched under an hour ago" : `fetched ${Math.round(ageH)}h ago`));
-    meta.appendChild(document.createTextNode(" · "));
   }
-  // The refresh action is ALWAYS reachable; only the age text is conditional.
-  const btn = document.createElement("button");
-  btn.className = "text-action";
-  btn.textContent = g.needs_refresh ? "fetch grades" : "refresh";
-  btn.addEventListener("click", () => loadGrades(true));
-  meta.appendChild(btn);
+  // The refresh action is ALWAYS reachable; only the age text is
+  // conditional. It renders as a SIBLING of the meta, not inside it: nested
+  // in .overline-meta it inherited 12px --text-3 and read as part of the
+  // "fetched 3h ago" sentence rather than as something to press. Library's
+  // "Reindex all" has sat in the row proper all along.
+  const slot = $("#grades-action");
+  if (slot) {
+    slot.innerHTML = "";
+    const btn = document.createElement("button");
+    btn.className = "text-action";
+    btn.textContent = g.needs_refresh ? "fetch grades" : "refresh";
+    btn.addEventListener("click", () => loadGrades(true));
+    slot.appendChild(btn);
+  }
 }
 
 /* ---- The Instrument: pure arithmetic that becomes marks ---- */
@@ -3123,238 +3212,448 @@ function renderGrades(g) {
   }
 }
 
-/* Pure render from data: resize and theme-toggle re-invoke this. */
-function renderAnalytics(a) {
-  const t = a.totals;
+/* ==================================================== analytics: the run
+   Exams and projects only, today to the last one. Nothing here counts work
+   that exists - Today owns what is next, Calendar owns what is due when,
+   Grades owns what was scored. What none of them can do is SUBTRACT: 93 of
+   the deadlines ahead are quizzes, 35 of those one repeating SPAN200 row,
+   so the month grid and #sem-ruler both make the week of Oct 19 (nine
+   quizzes, no assessment) read heavier than the week of Sep 28 (two
+   midterms). Take the quizzes off the line and the term's real shape shows
+   up: a few dense stretches with clear runs between them. */
 
-  // ---- Band 1: masthead figure strip
-  const entering = isEntering("#tab-analytics");
+const RUN_KINDS = new Set(["exam", "project"]);
+const RUN_DATED = new Set(["exam", "project", "quiz"]);
+const RUN_GAP_DAYS = 7;     // pieces further apart than this start a new stretch
+const RUN_STAKE_MIN = 5;    // percent, for the "priced but undated" line
+const RUN_HORIZON = 220;    // days of events fetched. config's semester_end
+                            // (Dec 1) falls BEFORE the last exam (Dec 7), so
+                            // anchoring the window on it would clip finals.
 
-  // ---- Lead: one sentence about the window a student can act on.
-  // The old masthead printed four 26px figures that the ledger's totals
-  // footer repeats verbatim further down the same screen, and they were
-  // semester-scale numbers that change nothing about today.
-  const days = a.daily_load || [];
-  const todayIso = isoDate(startOfDay(new Date()));
-  const win = days.filter(d => d.date >= todayIso).slice(0, 28);
-  const winTotal = win.reduce((n, d) => n + d.count, 0);
-  const busiest = win.reduce((best, d) => (d.count > (best ? best.count : 0) ? d : best), null);
-  const stmt = $("#an-statement");
-  const lmeta = $("#an-leadmeta");
-  if (!winTotal) {
-    stmt.textContent = "Nothing due in the next four weeks.";
-  } else {
-    const heavy = busiest && busiest.count > 1
-      ? `, and ${new Date(busiest.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })} is the wall at ${busiest.count}`
-      : "";
-    stmt.innerHTML = `<b>${winTotal}</b> ${winTotal === 1 ? "deadline" : "deadlines"} in the next four weeks${escapeHtml(heavy)}.`;
-    animateCount(stmt.querySelector("b"), winTotal, { animate: entering });
-  }
-  const clearDays = win.filter(d => !d.count).length;
-  const bits = [];
-  if (win.length) bits.push(`${clearDays} of ${win.length} days clear`);
-  if (a.semester && a.semester.pct_elapsed != null) {
-    bits.push(`${a.semester.pct_elapsed}% of the semester elapsed`);
-    bits.push(`${a.semester.weeks_remaining} weeks left`);
-  }
-  lmeta.textContent = bits.join(" \u00b7 ");
-
-  // ---- Ribbon: one column per day, 28 days, stacked by course. This is
-  // analytics.daily_load, which every payload has shipped and nothing read.
-  const ribbon = $("#an-ribbon");
-  const rmeta = $("#ribbon-meta");
-  ribbon.innerHTML = "";
-  const maxDay = Math.max(1, ...win.map(d => d.count));
-  rmeta.textContent = winTotal ? `peak ${maxDay} in a day` : "";
-  win.forEach((d, i) => {
-    const date = new Date(d.date + "T00:00:00");
-    const col = document.createElement("button");
-    col.type = "button";
-    col.className = "rb-day" + (d.date === todayIso ? " is-today" : "")
-      + ([0, 6].includes(date.getDay()) ? " weekend" : "")
-      + (d.count === maxDay && d.count > 1 ? " is-peak" : "");
-    const stack = document.createElement("span");
-    stack.className = "rb-stack";
-    // Entrance: each day's column grows from the baseline, 12ms apart.
-    stack.style.animationDelay = `${i * 12}ms`;
-    // Segments carry course color, but every column also states its count in
-    // the tooltip and aria-label, so identity never rests on hue. dataset
-    // stamps feed the ledger-to-ribbon cross-highlight.
-    for (const [course, n] of Object.entries(d.courses || {})) {
-      const seg = document.createElement("span");
-      seg.style.background = collectionColor(course);
-      seg.style.height = `${Math.round(52 * n / maxDay)}px`;
-      seg.dataset.course = course;
-      stack.appendChild(seg);
-    }
-    if (d.count === maxDay && d.count > 1) {
-      const pk = document.createElement("span");
-      pk.className = "rb-peak tnum";
-      pk.textContent = String(d.count);
-      stack.appendChild(pk);
-    }
-    col.appendChild(stack);
-    const dow = document.createElement("span");
-    dow.className = "rb-dow";
-    dow.textContent = date.toLocaleDateString(undefined, { weekday: "narrow" });
-    col.appendChild(dow);
-    const label = date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-    const aria = `${label}: ${d.count === 0 ? "clear" : plural(d.count, "deadline")}`;
-    col.setAttribute("aria-label", aria);
-    // The house tooltip replaces the native title: per-course rows in course
-    // color, keyboard parity via focus at the column's center.
-    const html = `<div class="tip-head">${escapeHtml(label)}</div>`
-      + Object.entries(d.courses || {}).map(([c2, n]) =>
-        tipRow(collectionColor(c2), escapeHtml(c2), n)).join("")
-      + (d.count ? tipRow(null, "<b>total</b>", `<b>${d.count}</b>`) : `<div class="tip-row"><span>clear</span></div>`);
-    col.addEventListener("mousemove", e => showTip(html, e));
-    col.addEventListener("mouseleave", hideTip);
-    col.addEventListener("focus", () => {
-      const r = col.getBoundingClientRect();
-      showTip(html, { clientX: r.left + r.width / 2, clientY: r.top });
-    });
-    col.addEventListener("blur", hideTip);
-    col.addEventListener("click", () => {
-      hideTip();
-      state.cal.cursor = startOfDay(date);
-      setCalMode("week");
-      showTab("calendar");
-    });
-    ribbon.appendChild(col);
-  });
-
-  // ---- Band 2: workload with fused week ruler
-  const wl = a.week_load;
-  const wlSvg = $("#chart-weekload");
-  const wlEmpty = !wl.weeks.length
-    || wl.weeks.every(w => Object.values(w.by_course).every(v => v === 0));
-  const wlMeta = $("#workload-meta");
-  const emptyLine = $("#workload-empty");
-  if (wlEmpty) {
-    wlSvg.classList.add("hidden");
-    emptyLine.textContent = "No semester schedule loaded.";
-    emptyLine.classList.remove("hidden");
-    wlMeta.innerHTML = "";
-  } else {
-    wlSvg.classList.remove("hidden");
-    emptyLine.classList.add("hidden");
-    const series = wl.courses.map(c => ({ key: c, color: collectionColor(c) }));
-    const totals = wl.weeks.map(w => Object.values(w.by_course).reduce((x, y) => x + y, 0));
-    const peakIdx = totals.indexOf(Math.max(...totals));
-    const peakDate = new Date(wl.weeks[peakIdx].week_start + "T00:00:00");
-    wlMeta.innerHTML = `events/wk · peak ${totals[peakIdx]}, `
-      + `${peakDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
-      + `&nbsp;&nbsp;` + series.map(s =>
-        `<span style="color:${courseInk(s.key)};font-weight:600">${escapeHtml(s.key)}</span>`).join(" ");
-    const thisMonday = isoDate(mondayOf(new Date()));
-    const weeks = wl.weeks.map(w => {
-      const d = new Date(w.week_start + "T00:00:00");
-      return {
-        label: `Week of ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
-        short: d.toLocaleDateString(undefined, { month: "numeric", day: "numeric" }),
-        parts: Object.entries(w.by_course).map(([key, value]) => ({ key, value })),
-        _current: w.week_start === thisMonday,
-        _past: w.week_start < thisMonday,
-      };
-    });
-    wlSvg.setAttribute("aria-label",
-      `Events per week across ${weeks.length} weeks, stacked by course`);
-    fusedWeekloadChart(wlSvg, weeks, series, {
-      labelEvery: weeks.length > 14 ? 2 : 1,
-      markerIndex: weeks.findIndex(w => w._current),
-      peakIndex: peakIdx,
-      animate: entering && !reducedMotion(),
-    });
-  }
-
-  // ---- Band 3 left: course ledger
-  const ledger = $("#course-ledger");
-  ledger.innerHTML = "";
-  if (!a.by_course.length) {
-    ledger.innerHTML = `<div class="empty-line">No courses with dated work yet.</div>`;
-  } else {
-    const head = document.createElement("div");
-    head.className = "cl-row head";
-    head.innerHTML = `<span></span><span>Course</span><span class="cl-num">Exams</span>
-      <span class="cl-num">Quizzes</span><span class="cl-num">Projects</span>
-      <span class="cl-num">Left</span><span></span><span>Next</span>`;
-    ledger.appendChild(head);
-    const rows = [...a.by_course].sort((x, y) => y.remaining - x.remaining);
-    const maxRemaining = Math.max(1, ...rows.map(c => c.remaining));
-    for (const c of rows) {
-      const row = document.createElement("div");
-      row.className = "cl-row" + (c.remaining === 0 ? " done" : "");
-      row.dataset.course = c.course;
-      const num = v => `<span class="cl-num${v === 0 ? " zero" : ""}">${v}</span>`;
-      let next = `<span class="cl-next">clear</span>`;
-      if (c.next_at) {
-        const n = c.days_until_next;
-        const tagCls = n <= 1 ? "urgent" : n <= 3 ? "soon" : "";
-        const tag = n === 0 ? "today" : n === 1 ? "tomorrow" : `${n}d`;
-        const when = new Date(c.next_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-        const title = c.next_title ? ` · ${c.next_title.length > 36 ? c.next_title.slice(0, 35) + "…" : c.next_title}` : "";
-        next = `<span class="cl-next"><span class="tag ${tagCls}">${tag}</span>${when}${escapeHtml(title)}</span>`;
-      } else if (c.note) {
-        next = `<span class="cl-next">${escapeHtml(c.note)}</span>`;
-      }
-      const hue = themedColor(c.color);
-      const barW = c.remaining > 0 ? Math.max(3, Math.round(150 * c.remaining / maxRemaining)) : 0;
-      row.innerHTML = `
-        <span class="cl-tick" style="background:${hue}"></span>
-        <span class="cl-code">${escapeHtml(c.course)}</span>
-        ${num(c.exam)}${num(c.quiz)}${num(c.project)}
-        <span class="cl-left">${c.remaining}</span>
-        <span class="cl-bartrack"><span class="cl-bar" style="width:${barW}px;background:${hue}"></span></span>
-        ${next}`;
-      ledger.appendChild(row);
-    }
-    const total = document.createElement("div");
-    total.className = "cl-row total";
-    total.innerHTML = `<span></span><span></span>
-      <span class="cl-num">${t.exams_remaining}</span>
-      <span class="cl-num">${t.quizzes_remaining}</span>
-      <span class="cl-num">${t.projects_remaining}</span>
-      <span class="cl-left">${t.deadlines_remaining}</span><span></span><span></span>`;
-    ledger.appendChild(total);
-  }
-  const cmeta = $("#courses-meta");
-  if (cmeta) {
-    cmeta.textContent = `${t.deadlines_remaining} left this semester \u00b7 `
-      + `${t.exams_remaining} exams \u00b7 ${t.quizzes_remaining} quizzes \u00b7 ${t.projects_remaining} projects`;
-  }
-
-  // ---- Pressure, scoped to the ribbon's own window so the two agree.
-  const bd = $("#busiest-days");
-  bd.innerHTML = "";
-  const winDates = new Set(win.map(d => d.date));
-  const pressure = (a.busiest_days || []).filter(d => winDates.has(d.date));
-  if (!pressure.length) {
-    bd.innerHTML = `<div class="empty-line">Nothing doubles up in the next four weeks.</div>`;
-  }
-  for (const d of pressure) {
-    const date = new Date(d.date + "T00:00:00");
-    const day = document.createElement("div");
-    day.className = "pr-day";
-    day.addEventListener("click", () => {
-      state.cal.cursor = startOfDay(date);
-      setCalMode("week");
-      showTab("calendar");
-    });
-    railKeyable(day);
-    const items = d.items.map(i => `
-      <div class="pr-item">
-        <span class="rule" style="background:${collectionColor(i.course)}"></span>
-        <span class="code" style="color:${courseInk(i.course)}">${escapeHtml(i.course)}</span>
-        <span class="t">${escapeHtml(i.title)}</span>
-      </div>`).join("");
-    day.innerHTML = `
-      <div class="pr-head"><span>${date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>
-        <span class="cnt">×${d.count}</span></div>${items}`;
-    bd.appendChild(day);
-  }
-
+function runDayGap(a, b) {
+  // Rounded, not truncated: the fall term crosses a DST boundary and a raw
+  // ms division returns 6.958 days for a 7-day gap on the first of November.
+  return Math.round((b - a) / 86400000);
 }
 
+function runFmtDay(d) {
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function runList(names) {
+  if (names.length <= 1) return names[0] || "";
+  return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+}
+
+/* item.weight is D2L's GradeObject.Weight: a percent WITHIN the item's
+   category whenever the item has one, and a percent of the final grade only
+   when it has none. The category objects carrying the category's own weight
+   are dropped at the connector, so the two cannot be multiplied back
+   together. Live, the non-excluded weights sum to 80 / 100 / 400 / 555 / 100
+   across the five books - FINC315 is four categories of 100, FINC389 five
+   plus 55 direct, and FINC380 stamps 10.0 on both a 100-point exam and a
+   10-point quiz. Reading weight as a share of the grade is a 4x to 10x lie
+   in three of the five, so a book prices its work only when D2L calls it
+   weighted AND its live weights actually add to 100. The tolerance is float
+   noise: the cache carries 100.000000003. */
+function gradebookPrices(course) {
+  if ((course.summary || {}).basis !== "weighted") return false;
+  const live = (course.items || []).filter(i => !i.excluded && !i.bonus);
+  const sum = live.reduce((n, i) => n + (Number(i.weight) || 0), 0);
+  return Math.abs(sum - 100) <= 1;
+}
+
+/* Gradebook item <-> calendar row, deliberately strict. This course load is
+   almost entirely numbered series (Excel Project 1-4, Examen 1-3, Talk
+   Abroad #1-3), and a matcher that folds numerals collapses a series onto
+   its first sibling, which prints a stake for the wrong assignment. So:
+   numerals are always significant and must agree in BOTH directions, one
+   side's words must cover the other's (prefix-tolerant, because the calendar
+   writes "Ch 11" where the gradebook writes "Chapters 11"), and anything
+   matching two or more items prints nothing at all. A miss costs a blank
+   cell; a false hit is a lie on screen. */
+const RUN_STOP = new Set(["de", "en", "la", "el", "y", "del", "due", "the",
+                          "of", "and", "a", "in", "on", "at", "por", "para", "con"]);
+
+function runFold(s) {
+  return String(s).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/\([^)]*\)/g, " ").replace(/\[[^\]]*\]/g, " ")
+    .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm)?\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function runWords(s) {
+  return runFold(s).split(" ")
+    .filter(w => w && !RUN_STOP.has(w) && (w.length > 1 || /\d/.test(w)));
+}
+
+function runNums(s, course) {
+  // The course's own digits are not a discriminator: "FINC 313 Final Exam"
+  // has to keep matching the gradebook's "Final Exam".
+  const code = String(course).replace(/\D/g, "");
+  return [...new Set((runFold(s).match(/\d+/g) || []).filter(n => n !== code))];
+}
+
+function runCovers(a, b) {
+  return a.every(x => b.some(y => x === y
+    || (x.length >= 2 && y.startsWith(x)) || (y.length >= 2 && x.startsWith(y))));
+}
+
+function runSame(itemName, evTitle, course) {
+  const it = runWords(itemName), et = runWords(evTitle);
+  if (!it.length || !et.length) return false;
+  const a = runNums(itemName, course), b = runNums(evTitle, course);
+  if (a.length !== b.length || a.some(n => !b.includes(n))) return false;
+  return runCovers(it, et) || runCovers(et, it);
+}
+
+/* A clear run, drawn as a gap in the ledger rather than as a row of data. */
+function runGapRow(r) {
+  const el = document.createElement("div");
+  el.className = "rn-run";
+  el.innerHTML = `<span class="bar"></span><span>${plural(r.days, "clear day")}`
+    + ` · ${escapeHtml(runFmtDay(addDays(r.from, 1)))}`
+    + `–${escapeHtml(runFmtDay(addDays(r.to, -1)))}</span>`;
+  return el;
+}
+
+function renderAnalytics(events, grades) {
+  const entering = isEntering("#tab-analytics");
+  const today = startOfDay(new Date());
+  const all = events || [];
+  const pieces = all
+    .filter(ev => RUN_KINDS.has(ev.kind) && ev.starts_at)
+    .map(ev => ({ ev, day: startOfDay(new Date(ev.starts_at)) }))
+    .filter(p => p.day >= today)
+    .sort((a, b) => (a.day - b.day)
+      || String(a.ev.course).localeCompare(String(b.ev.course)));
+
+  // Books that can price their work, every book's items for the join, and
+  // the course's events bucketed once so the join is not O(items x term).
+  const priced = [], unpriced = [], books = new Map(), evByCourse = new Map();
+  for (const ev of all) {
+    if (!RUN_DATED.has(ev.kind)) continue;
+    const k = String(ev.course).toUpperCase();
+    if (!evByCourse.has(k)) evByCourse.set(k, []);
+    evByCourse.get(k).push(ev);
+  }
+  for (const c of (grades && grades.courses) || []) {
+    const key = String(c.course).toUpperCase();
+    const prices = gradebookPrices(c);
+    books.set(key, { name: c.course, prices,
+      items: (c.items || []).filter(i => !i.excluded) });
+    (prices ? priced : unpriced).push(c.course);
+  }
+  // Weight 0.0 prints nothing rather than "0%": ten FINC315 items carry an
+  // exact 0.0, which is D2L declining to publish a weight, not an item that
+  // does not matter. Those books are gated out anyway; the rule stands so it
+  // still holds the day one of them starts summing to 100.
+  const stakeItem = p => {
+    const b = books.get(String(p.ev.course).toUpperCase());
+    if (!b || !b.prices) return null;
+    const hits = b.items.filter(i => runSame(i.name, p.ev.title, p.ev.course));
+    if (hits.length !== 1) return null;
+    const w = Number(hits[0].weight);
+    return Number.isFinite(w) && w > 0 ? hits[0] : null;
+  };
+  const stakeOf = p => {
+    const i = stakeItem(p);
+    return i ? Math.round(Number(i.weight) * 10) / 10 : null;
+  };
+  const stakeItemName = p => {
+    const i = stakeItem(p);
+    return i ? i.name : "";
+  };
+
+  const stmt = $("#an-statement");
+  const lmeta = $("#an-leadmeta");
+  const plot = $("#sp-plot");
+  const marks = $("#sp-marks");
+  const runsEl = $("#sp-runs");
+  const monthsEl = $("#sp-months");
+  const ledger = $("#run-ledger");
+  marks.innerHTML = "";
+  runsEl.innerHTML = "";
+  monthsEl.innerHTML = "";
+  ledger.innerHTML = "";
+  $("#doubles-list").innerHTML = "";
+  $("#an-doubles").classList.add("hidden");
+
+  if (!pieces.length) {
+    stmt.textContent = "No exams or projects left on your calendar.";
+    lmeta.textContent = "";
+    plot.classList.add("hidden");
+    $("#spine-meta").textContent = "";
+    $("#sp-note").textContent = "";
+    $("#ledger-meta").textContent = "";
+    ledger.innerHTML = `<div class="empty-line">Nothing dated ahead. If that `
+      + `looks wrong, re-import the calendar from Library.</div>`;
+    $("#ledger-note").textContent = "";
+    return;
+  }
+  plot.classList.remove("hidden");
+
+  // ---- stretches, and the clear runs between them
+  const groups = [];
+  for (const p of pieces) {
+    const g = groups[groups.length - 1];
+    if (g && runDayGap(g[g.length - 1].day, p.day) <= RUN_GAP_DAYS) g.push(p);
+    else groups.push([p]);
+  }
+  const runs = [];
+  const leadIn = runDayGap(today, groups[0][0].day) - 1;
+  if (leadIn >= RUN_GAP_DAYS) {
+    runs.push({ from: today, to: groups[0][0].day, days: leadIn, after: -1 });
+  }
+  for (let k = 1; k < groups.length; k++) {
+    const from = groups[k - 1][groups[k - 1].length - 1].day;
+    const to = groups[k][0].day;
+    runs.push({ from, to, days: runDayGap(from, to) - 1, after: k - 1 });
+  }
+  const spanText = (a, b) => runDayGap(a, b) === 0
+    ? runFmtDay(a) : `${runFmtDay(a)}–${runFmtDay(b)}`;
+
+  // ---- lead: the next stretch, the run behind it, and what lands after
+  const g0 = groups[0];
+  // "dates", not "exams": FINC313's one final carries three calendar rows,
+  // so a count of rows is not a count of assessments. The doubles band at the
+  // foot of the tab says so outright; the lead just stops over-claiming.
+  let html = g0.length === 1
+    ? `<b>1</b> ${escapeHtml(g0[0].ev.kind)} lands `
+      + `${escapeHtml(runFmtDay(g0[0].day))}`
+    : `<b>${g0.length}</b> exam and project dates land `
+      + `${escapeHtml(spanText(g0[0].day, g0[g0.length - 1].day))}`;
+  const nextRun = runs.find(r => r.after === 0);
+  if (nextRun) {
+    html += `, then <b>${nextRun.days} clear days</b>`;
+    const g1 = groups[1];
+    if (g1) {
+      const d1 = runDayGap(g1[0].day, g1[g1.length - 1].day) + 1;
+      html += d1 === 1
+        ? `, then <b>${g1.length} more</b> on ${escapeHtml(runFmtDay(g1[0].day))}`
+        : `, then <b>${g1.length} more</b> across the ${d1} days from `
+          + `${escapeHtml(runFmtDay(g1[0].day))}`;
+    }
+  }
+  stmt.innerHTML = html + ".";
+  // One counted figure, as the lead has always had. Three numerals racing at
+  // once is decoration.
+  animateCount(stmt.querySelector("b"), g0.length, { animate: entering });
+
+  const lastDay = pieces[pieces.length - 1].day;
+  lmeta.textContent = `${pieces.length} exam and project `
+    + `${pieces.length === 1 ? "date" : "dates"} to ${runFmtDay(lastDay)} `
+    + `· quizzes and class meetings are not counted`;
+
+  // ---- the spine. Percentages of the whole run, written ONCE at build:
+  // left and width are never transitioned (that has shipped a bug here).
+  const span = Math.max(1, runDayGap(today, lastDay));
+  const pad = Math.max(2, Math.round(span * 0.035));
+  const xOf = d => 100 * runDayGap(today, d) / (span + pad);
+  const nExam = pieces.filter(p => p.ev.kind === "exam").length;
+  $("#spine-meta").textContent = `${plural(nExam, "exam")} · `
+    + `${plural(pieces.length - nExam, "project")}`;
+
+  for (const p of pieces) {
+    const hue = collectionColor(p.ev.course);
+    const stake = stakeOf(p);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `sp-cp k-${p.ev.kind}` + (p.ev.done ? " is-done" : "");
+    btn.style.left = `${xOf(p.day).toFixed(3)}%`;
+    btn.dataset.key = `${p.ev.course}|${p.ev.starts_at}`;
+    const tick = document.createElement("span");
+    tick.className = "sp-tick";
+    tick.style.background = hue;
+    btn.appendChild(tick);
+    btn.setAttribute("aria-label", `${p.ev.course} ${p.ev.kind}, `
+      + `${p.day.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}: `
+      + `${stripAside(p.ev.title)}${stake ? `, ${stake}% of the course` : ""}`);
+    const tip = `<div class="tip-head">${escapeHtml(runFmtDay(p.day))} · `
+      + `${escapeHtml(p.ev.kind)}</div>`
+      + tipRow(hue, escapeHtml(p.ev.course), escapeHtml(stripAside(p.ev.title)))
+      + (stake ? tipRow(null, "share of grade", `<b>${stake}%</b>`) : "");
+    btn.addEventListener("mousemove", e => showTip(tip, e));
+    btn.addEventListener("mouseleave", hideTip);
+    btn.addEventListener("focus", () => {
+      const r = btn.getBoundingClientRect();
+      showTip(tip, { clientX: r.left + r.width / 2, clientY: r.top });
+    });
+    btn.addEventListener("blur", hideTip);
+    btn.addEventListener("click", () => {
+      hideTip();
+      state.cal.cursor = startOfDay(p.day);
+      setCalMode("week");
+      showTab("calendar");
+    });
+    marks.appendChild(btn);
+  }
+
+  for (const r of runs) {
+    const el = document.createElement("div");
+    el.className = "sp-run";
+    const left = xOf(r.from), right = xOf(r.to);
+    el.style.left = `${left.toFixed(3)}%`;
+    el.style.width = `${Math.max(0, right - left).toFixed(3)}%`;
+    const lab = document.createElement("span");
+    lab.textContent = `${r.days}d`;
+    el.appendChild(lab);
+    runsEl.appendChild(el);
+  }
+
+  const edge = addDays(lastDay, pad);
+  for (let m = new Date(today.getFullYear(), today.getMonth(), 1);
+       m <= edge; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+    const at = m < today ? today : m;
+    const el = document.createElement("span");
+    if (at <= today) el.className = "at-start";
+    el.style.left = `${xOf(at).toFixed(3)}%`;
+    el.textContent = m.toLocaleDateString(undefined, { month: "short" });
+    monthsEl.appendChild(el);
+  }
+
+  const note = ["A clear run is a week or more with no exam and no project "
+    + "on it." + (runs.length
+      ? ` ${runs.length === 1 ? "One is" : runs.length + " are"} left, and the `
+        + `last ends ${runFmtDay(addDays(runs[runs.length - 1].to, -1))}.`
+      : " There is not one left.")];
+  const quizzes = all.filter(ev => ev.kind === "quiz" && ev.starts_at
+    && startOfDay(new Date(ev.starts_at)) >= today);
+  if (quizzes.length) {
+    // Keyed on course+title, but the course is carried in the VALUE: a
+    // separator baked into the key is one bad character away from a NUL in
+    // the source file, and every tool downstream then calls app.js binary.
+    const rep = new Map();
+    for (const q of quizzes) {
+      const k = `${q.course} | ${q.title}`;
+      const seen = rep.get(k);
+      if (seen) seen.n += 1; else rep.set(k, { course: q.course, n: 1 });
+    }
+    const top = [...rep.values()].sort((a, b) => b.n - a.n)[0];
+    note.push(`${quizzes.length} `
+      + `${quizzes.length === 1 ? "quiz ahead is" : "quizzes ahead are"} `
+      + `left off this line`
+      + (top.n > 2
+        ? `; ${top.n} of them are the same repeating ${top.course} row.`
+        : "."));
+  }
+  $("#sp-note").textContent = note.join(" ");
+
+  // ---- what lands when
+  $("#ledger-meta").textContent =
+    `${groups.length} ${groups.length === 1 ? "stretch" : "stretches"} · `
+    + `${plural(runs.length, "clear run")}`;
+  // A stake is printed at full weight the first time its gradebook item
+  // appears and dimmed on every later date, so scanning the column cannot
+  // add FINC313's one 25% final up to 75%.
+  const seenItem = new Set();
+  const leading = runs.find(r => r.after === -1);
+  if (leading) ledger.appendChild(runGapRow(leading));
+  groups.forEach((g, gi) => {
+    const wrap = document.createElement("div");
+    wrap.className = "rn-stretch";
+    const a = g[0].day, b = g[g.length - 1].day;
+    const head = document.createElement("div");
+    head.className = "rn-head";
+    head.innerHTML = `<span class="rn-span">${escapeHtml(spanText(a, b))}</span>`
+      + `<span class="rn-rule"></span><span class="rn-facts">`
+      + `${plural(g.length, "date")} · `
+      + `${plural(new Set(g.map(p => p.ev.course)).size, "course")} · `
+      + `${plural(runDayGap(a, b) + 1, "day")}</span>`;
+    wrap.appendChild(head);
+    for (const p of g) {
+      const stake = stakeOf(p);
+      const idKey = `${p.ev.course}|${stake ? stakeItemName(p) : p.ev.title}`;
+      const again = stake && seenItem.has(idKey);
+      if (stake) seenItem.add(idKey);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "rn-row" + (p.ev.done ? " is-done" : "");
+      row.dataset.key = `${p.ev.course}|${p.ev.starts_at}`;
+      row.innerHTML = `
+        <span class="rn-tick" style="background:${collectionColor(p.ev.course)}"></span>
+        <span class="rn-date">${escapeHtml(p.day.toLocaleDateString(undefined,
+          { weekday: "short", month: "short", day: "numeric" }))}</span>
+        <span class="rn-kind">${escapeHtml(p.ev.kind)}</span>
+        <span class="rn-code" style="color:${courseInk(p.ev.course)}">${escapeHtml(p.ev.course)}</span>
+        <span class="rn-title">${escapeHtml(stripAside(p.ev.title))}</span>
+        <span class="rn-stake${stake >= 10 ? " big" : ""}${again ? " again" : ""}"
+          >${stake ? stake + "%" : ""}</span>`;
+      row.addEventListener("click", () => {
+        state.cal.cursor = startOfDay(p.day);
+        setCalMode("week");
+        showTab("calendar");
+      });
+      wrap.appendChild(row);
+    }
+    ledger.appendChild(wrap);
+    const after = runs.find(r => r.after === gi);
+    if (after) ledger.appendChild(runGapRow(after));
+  });
+
+  // The gate, stated once, in the courses' own names. Not an apology: those
+  // books genuinely do not publish a share, and a blank cell nobody explains
+  // reads as "this one does not count".
+  const lnote = [];
+  if (priced.length) {
+    lnote.push(`A percent is the gradebook's own weight, shown for `
+      + `${runList(priced)}, whose weights add up to 100.`);
+    if (unpriced.length) {
+      lnote.push(`${runList(unpriced)} publish weights that do not add up to a `
+        + `course grade, so no share is shown for them.`);
+    }
+  } else if (unpriced.length) {
+    lnote.push("No gradebook here publishes weights that add up to a course "
+      + "grade, so no shares are shown.");
+  }
+  // Priced work carrying real weight with no date anywhere on the calendar:
+  // the one thing a gradebook knows that a calendar structurally cannot show.
+  for (const [key, b] of books) {
+    if (!b.prices) continue;
+    const evs = evByCourse.get(key) || [];
+    for (const i of b.items) {
+      const w = Number(i.weight);
+      if (i.graded || i.bonus || !(w >= RUN_STAKE_MIN)) continue;
+      if (evs.some(ev => runSame(i.name, ev.title, ev.course))) continue;
+      lnote.push(`${b.name} also prices ${i.name} at `
+        + `${Math.round(w * 10) / 10}%, and it has no date on your calendar.`);
+    }
+  }
+  $("#ledger-note").textContent = lnote.join(" ");
+
+  // ---- one item, more than one date
+  const doubles = [];
+  for (const [key, b] of books) {
+    for (const i of b.items) {
+      const hits = pieces.filter(p => String(p.ev.course).toUpperCase() === key
+        && runSame(i.name, p.ev.title, p.ev.course));
+      if (new Set(hits.map(p => isoDate(p.day))).size < 2) continue;
+      const w = Number(i.weight);
+      doubles.push({ name: b.name, item: i.name, hits,
+        w: b.prices && w > 0 ? Math.round(w * 10) / 10 : null });
+    }
+  }
+  if (doubles.length) {
+    const list = $("#doubles-list");
+    $("#an-doubles").classList.remove("hidden");
+    $("#doubles-meta").textContent = plural(doubles.length, "item");
+    for (const d of doubles) {
+      const el = document.createElement("div");
+      el.className = "cf-row";
+      el.innerHTML = `<div class="cf-head">`
+        + `<span class="code" style="color:${courseInk(d.name)}">${escapeHtml(d.name)}</span>`
+        + `<span class="nm">${escapeHtml(d.item)}</span>`
+        + (d.w ? `<span class="stake">${d.w}%</span>` : "")
+        + `</div>` + d.hits.map(p => `<div class="cf-when">`
+          + `<span class="d">${escapeHtml(runFmtDay(p.day))}</span>`
+          + `<span class="t">${escapeHtml(stripAside(p.ev.title))}</span></div>`).join("");
+      list.appendChild(el);
+    }
+    $("#doubles-note").textContent = "The gradebook prices each of these once. "
+      + "Your calendar carries the extra dates, which is why a count of dates "
+      + "is not a count of exams.";
+  }
+}
 
 /* ============================================================= calendar */
 
@@ -4783,8 +5082,7 @@ function renderLibrary(data) {
         <span class="lib-name">${escapeHtml(c.name)}</span>${assist}
         <span class="sp"></span>
         <span class="lib-fig"><b>${c.doc_count.toLocaleString()}</b> <span>docs</span></span>
-        <span class="lib-fig wide"><b>${c.chunk_count.toLocaleString()}</b> <span>chunks</span>
-          <i class="lib-meter" style="--w:${totalChunks ? Math.round(1000 * (c.chunk_count || 0) / totalChunks) / 10 : 0};background:${themedColor(c.color)}"></i></span>
+        <span class="lib-fig wide"><b>${c.chunk_count.toLocaleString()}</b> <span>chunks</span></span>
       </div>
       <div class="lib-l2">
         ${aged}${missingBit}${failBit}${rootsBit}
@@ -5293,46 +5591,34 @@ function initLibrary() {
 
 /* ================================================================= init */
 
-/* SVG charts are sized in pixels at draw time; redraw on resize. */
-function initChartResize() {
-  let timer = null;
-  window.addEventListener("resize", () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      const active = $(".tab-panel.active");
-      if (!active) return;
-      if (active.id === "tab-analytics" && state.analytics) {
-        // A resize repaint is not an arrival either.
-        active.classList.remove("entering");
-        clearTimeout(active._enterTimer);
-        renderAnalytics(state.analytics);
-      }
-    }, 180);
-  });
-}
-
-/* Ledger-row hover lights that course's segments across the 28-day ribbon.
-   Delegated and attached exactly ONCE - renderAnalytics re-runs on every
-   sync poll and theme flip, so per-render listeners would stack. */
-function initAnalyticsCross() {
-  const ledger = $("#course-ledger");
-  const ribbon = $("#an-ribbon");
-  if (!ledger || !ribbon) return;
+/* Ledger-row hover lights that one mark on the spine. Delegated and attached
+   exactly ONCE - renderAnalytics re-runs on every sync poll and theme flip,
+   so per-render listeners would stack. The old version of this cross-lit a
+   course across a 28-day ribbon; the ribbon is gone, and a row now points at
+   its own mark, which is the pairing that was actually wanted.
+   initChartResize went with it: the spine is laid out in percentages, so a
+   resize needs no repaint at all, and that removes the one code path that
+   had to strip .entering by hand to avoid replaying an entrance. */
+function initRunCross() {
+  const ledger = $("#run-ledger");
+  const marks = $("#sp-marks");
+  if (!ledger || !marks) return;
+  const spot = key => {
+    marks.classList.toggle("row-spot", !!key);
+    for (const m of marks.querySelectorAll(".sp-cp")) {
+      m.classList.toggle("match", !!key && m.dataset.key === key);
+    }
+  };
   ledger.addEventListener("mouseover", e => {
-    const row = e.target.closest(".cl-row[data-course]");
-    if (!row) return;
-    ribbon.classList.add("course-spot");
-    for (const seg of ribbon.querySelectorAll(".rb-stack > span")) {
-      seg.classList.toggle("match", seg.dataset.course === row.dataset.course);
-    }
+    const row = e.target.closest(".rn-row[data-key]");
+    if (row) spot(row.dataset.key);
   });
-  ledger.addEventListener("mouseout", e => {
-    if (e.target.closest(".cl-row") && !ledger.contains(e.relatedTarget)) {
-      ribbon.classList.remove("course-spot");
-    } else if (!e.relatedTarget || !e.relatedTarget.closest(".cl-row")) {
-      ribbon.classList.remove("course-spot");
-    }
+  ledger.addEventListener("mouseleave", () => spot(null));
+  ledger.addEventListener("focusin", e => {
+    const row = e.target.closest(".rn-row[data-key]");
+    if (row) spot(row.dataset.key);
   });
+  ledger.addEventListener("focusout", () => spot(null));
 }
 
 async function init() {
@@ -5340,8 +5626,7 @@ async function init() {
   initTabs();
   initPalette();
   initAskAnything();
-  initAnalyticsCross();
-  initChartResize();
+  initRunCross();
   initCalendarControls();
   initChat();
   initLibrary();
